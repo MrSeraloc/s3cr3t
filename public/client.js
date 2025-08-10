@@ -18,6 +18,7 @@ const body = document.body;
 let roomKey = null;
 let keyPair = null;
 
+// MUDANÇA AQUI: Dicionário de traduções expandido com o FAQ
 const translations = {
     en: {
         pageTitle: "Confessorium",
@@ -26,7 +27,18 @@ const translations = {
         userLeft: "{username} left the chat.",
         roomInstructions: "To join the conversation, ",
         clickToCopy: "click here to copy the room link.",
-        linkCopiedBubble: "Link copied!"
+        linkCopiedBubble: "Link copied!",
+        faqTitle: "FAQ - Your Privacy",
+        q1Title: "Do I need to register?",
+        q1Answer: "No. Confessorium is 100% anonymous. We do not ask for your name, email, or any personal information. Just connect to create a new room.",
+        q2Title: "Are my conversations private?",
+        q2Answer: "Yes. We use End-to-End Encryption. When you send a message, it is locked with a secret key in your browser. Only people in the room have the key to unlock it. Our server cannot read your messages.",
+        q3Title: "What happens when I leave?",
+        q3Answer: "Everything is deleted. When the last user leaves a room, the chat history and the secret key are permanently destroyed. Nothing is stored on our servers.",
+        q4Title: "Do you keep logs?",
+        q4Answer: "For security, our server keeps a record of activity (like IP address and connection time), but NEVER the content of your conversations. The actual content of your message always remains unreadable and secret to anyone outside the room.",
+        q5Title: "How secure are the rooms?",
+        q5Answer: "Each room is created with a unique, long, and random URL. THE ONLY WAY for someone to enter your conversation is if you share that exact link with them. There is no public list of rooms."
     },
     pt: {
         pageTitle: "Confessorium",
@@ -35,7 +47,18 @@ const translations = {
         userLeft: "{username} saiu do chat.",
         roomInstructions: "Para participar da conversa, ",
         clickToCopy: "clique aqui para copiar o link da sala.",
-        linkCopiedBubble: "Link copiado!"
+        linkCopiedBubble: "Link copiado!",
+        faqTitle: "FAQ - A Sua Privacidade",
+        q1Title: "Preciso de me registar?",
+        q1Answer: "Não. O Confessorium é 100% anónimo. Não pedimos o seu nome, e-mail ou qualquer informação pessoal. Basta conectar-se para criar uma nova sala.",
+        q2Title: "As minhas conversas são privadas?",
+        q2Answer: "Sim. Usamos Criptografia de Ponta a Ponta. Quando envia uma mensagem, ela é trancada com uma chave secreta no seu navegador. Apenas as pessoas na sala têm a chave para a destrancar. O nosso servidor não consegue ler as suas mensagens.",
+        q3Title: "O que acontece quando saio?",
+        q3Answer: "Tudo é apagado. Quando o último utilizador sai de uma sala, o histórico da conversa e a chave secreta são permanentemente destruídos. Nada fica guardado nos nossos servidores.",
+        q4Title: "Guardam registos (logs)?",
+        q4Answer: "Por segurança, o nosso servidor guarda um registo de atividade (como endereço IP e hora de conexão), mas NUNCA o conteúdo das suas conversas. O conteúdo real da sua mensagem permanece SEMPRE ilegível e secreto para qualquer pessoa fora da sala.",
+        q5Title: "Quão seguras são as salas?",
+        q5Answer: "Cada sala é criada com um URL único, longo e aleatório. A ÚNICA FORMA de alguém entrar na sua conversa é se VOCÊ partilhar esse link exato com essa pessoa. Não existe uma lista pública de salas."
     }
 };
 
@@ -135,7 +158,6 @@ darkThemeBtn.addEventListener('click', () => setTheme('dark'));
 const savedTheme = localStorage.getItem('theme') || 'dark';
 setTheme(savedTheme);
 
-// MUDANÇA AQUI: Adicionada uma verificação para evitar erros
 if (closeModalBtn) {
     closeModalBtn.addEventListener('click', () => imageModal.classList.remove('show'));
 }
