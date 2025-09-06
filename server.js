@@ -1,6 +1,6 @@
 const express = require('express');
 const http = require('http');
-const { Server } = require("socket.io");
+const { Server } = require("socket.io&quot￼;
 const path = require('path');
 const crypto = require('crypto');
 
@@ -13,14 +13,27 @@ const PORT = process.env.PORT || 8080;
 
 app.use(express.static('public'));
 
+// =========== INÍCIO DA MODIFICAÇÃO ===========
+
+// 1. Rota principal '/' agora serve a sua nova página de splash.
 app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// 2. Criamos uma nova rota '/new' que o botão da splash page irá chamar.
+//    Esta rota gera o ID da sala e redireciona o usuário para ela.
+app.get('/new', (req, res) => {
   const roomId = crypto.randomBytes(16).toString('hex');
   res.redirect(`/${roomId}`);
 });
 
+// =========== FIM DA MODIFICAÇÃO ===========
+
 app.get('/:roomId', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'chat.html'));
 });
+
+// ... o resto do seu código (io.on('connection', ...)) continua aqui ...
 
 io.on('connection', (socket) => {
   const userIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
