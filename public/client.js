@@ -155,8 +155,12 @@ const openImageModal = (src) => {
     imageModal.classList.add('show');
 };
 
-lightThemeBtn.addEventListener('click', () => setTheme('light'));
-darkThemeBtn.addEventListener('click', () => setTheme('dark'));
+if (lightThemeBtn) {
+    lightThemeBtn.addEventListener('click', () => setTheme('light'));
+}
+if (darkThemeBtn) {
+    darkThemeBtn.addEventListener('click', () => setTheme('dark'));
+}
 const savedTheme = localStorage.getItem('theme') || 'dark';
 setTheme(savedTheme);
 
@@ -167,83 +171,89 @@ if (imageModal) {
     imageModal.addEventListener('click', (e) => { if (e.target === imageModal) imageModal.classList.remove('show'); });
 }
 
-copyLinkFromText.addEventListener('click', (e) => {
-    e.preventDefault();
-    const roomURL = window.location.href;
-    navigator.clipboard.writeText(roomURL).then(() => {
-        copyBubble.textContent = translations[currentLang].linkCopiedBubble;
-        copyBubble.classList.add('show');
-        setTimeout(() => {
-            copyBubble.classList.remove('show');
-        }, 5000);
-    }).catch(err => {
-        console.error('Error copying link: ', err);
+if (copyLinkFromText && copyBubble) {
+    copyLinkFromText.addEventListener('click', (e) => {
+        e.preventDefault();
+        const roomURL = window.location.href;
+        navigator.clipboard.writeText(roomURL).then(() => {
+            copyBubble.textContent = translations[currentLang].linkCopiedBubble;
+            copyBubble.classList.add('show');
+            setTimeout(() => {
+                copyBubble.classList.remove('show');
+            }, 5000);
+        }).catch(err => {
+            console.error('Error copying link: ', err);
+        });
     });
-});
+}
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if (input.value && roomKey) {
-    const payload = await cryptoUtils.encrypt(roomKey, input.value);
-    socket.emit('chat message', payload);
-    input.value = '';
-    input.focus();
-  }
-});
-
-input.addEventListener('paste', (e) => {
-    if (!roomKey) return;
-    const items = e.clipboardData.items;
-    for (const item of items) {
-        if (item.type.indexOf('image') !== -1) {
-            e.preventDefault();
-            const file = item.getAsFile();
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const payload = await cryptoUtils.encrypt(roomKey, event.target.result);
-                socket.emit('chat image', payload);
-            };
-            reader.readAsDataURL(file);
-            return;
+if (form && input) {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (input.value && roomKey) {
+            const payload = await cryptoUtils.encrypt(roomKey, input.value);
+            socket.emit('chat message', payload);
+            input.value = '';
+            input.focus();
         }
-    }
-});
+    });
+
+    input.addEventListener('paste', (e) => {
+        if (!roomKey) return;
+        const items = e.clipboardData.items;
+        for (const item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    const payload = await cryptoUtils.encrypt(roomKey, event.target.result);
+                    socket.emit('chat image', payload);
+                };
+                reader.readAsDataURL(file);
+                return;
+            }
+        }
+    });
+}
 
 // =================================================================
 // Lógica de Envio de Arquivo de Imagem
 // =================================================================
 
 // 1. Acionar o input de arquivo (que está oculto) ao clicar no botão de anexo
-attachBtn.addEventListener('click', () => {
-  imageInput.click();
-});
+if (attachBtn && imageInput) {
+    attachBtn.addEventListener('click', () => {
+        imageInput.click();
+    });
 
-// 2. Processar o arquivo quando o usuário escolher um
-imageInput.addEventListener('change', ￼ => {
-  const file = e.target.files[0];
-  if (!file || !roomKey) {
-    return;
-  }
+    // 2. Processar o arquivo quando o usuário escolher um
+    imageInput.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file || !roomKey) {
+            return;
+        }
 
-  // Usamos o FileReader para converter o arquivo de imagem em uma string Base64 (Data URL)
-  // Este é o mesmo formato que a função de colar imagem já utiliza!
-  const reader = new FileReader();
-  
-  reader.onload = async (event) => {
-    const base64Image = event.target.result;
-    
-    // Criptografa a imagem da mesma forma que as outras mensagens
-    const payload = await cryptoUtils.encrypt(roomKey, base64Image);
-    
-    // Emite para o servidor no mesmo canal 'chat image'
-    socket.emit('chat image', payload);
-  };
-  
-  reader.readAsDataURL(file);
+        // Usamos o FileReader para converter o arquivo de imagem em uma string Base64 (Data URL)
+        // Este é o mesmo formato que a função de colar imagem já utiliza!
+        const reader = new FileReader();
+        
+        reader.onload = async (event) => {
+            const base64Image = event.target.result;
+            
+            // Criptografa a imagem da mesma forma que as outras mensagens
+            const payload = await cryptoUtils.encrypt(roomKey, base64Image);
+            
+            // Emite para o servidor no mesmo canal 'chat image'
+            socket.emit('chat image', payload);
+        };
+        
+        reader.readAsDataURL(file);
 
-  // Limpa o valor do input para que o usuário possa selecionar o mesmo arquivo novamente
-  imageInput.value = '';
-});
+        // Limpa o valor do input para que o usuário possa selecionar o mesmo arquivo novamente
+        imageInput.value = '';
+    });
+}
 
 const createNewMessageBubble = (data) => {
     const item = document.createElement('li');
@@ -300,6 +310,15 @@ socket.on('key-response', async (payload) => {
 // Lógica para receber e exibir mensagens
 // =================================================================
 
+// Debounce function for scroll updates
+let scrollTimeout;
+function debounceScrollMessages() {
+    if (scrollTimeout) clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+        messages.scrollTop = messages.scrollHeight;
+    }, 100); // 100ms debounce
+}
+
 socket.on('chat message', async (data) => {
     if (!roomKey) return;
     const decryptedText = await cryptoUtils.decrypt(roomKey, data);
@@ -319,7 +338,7 @@ socket.on('chat message', async (data) => {
         newBubble.appendChild(textElement);
     }
   
-    messages.scrollTop = messages.scrollHeight;
+    debounceScrollMessages();
     lastSenderId = data.senderId;
 });
 
