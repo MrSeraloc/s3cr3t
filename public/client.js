@@ -13,6 +13,8 @@ const imageModal = document.getElementById('image-modal');
 const modalImageContent = document.getElementById('modal-image-content');
 const closeModalBtn = document.querySelector('.close-modal');
 const body = document.body;
+const attachBtn = document.getElementById('attach-btn');
+const imageInput = document.getElementById('image-input');
 
 // Variáveis para guardar as chaves de encriptação
 let roomKey = null;
@@ -205,6 +207,42 @@ input.addEventListener('paste', (e) => {
             return;
         }
     }
+});
+
+// =================================================================
+// Lógica de Envio de Arquivo de Imagem
+// =================================================================
+
+// 1. Acionar o input de arquivo (que está oculto) ao clicar no botão de anexo
+attachBtn.addEventListener('click', () => {
+  imageInput.click();
+});
+
+// 2. Processar o arquivo quando o usuário escolher um
+imageInput.addEventListener('change', ￼ => {
+  const file = e.target.files[0];
+  if (!file || !roomKey) {
+    return;
+  }
+
+  // Usamos o FileReader para converter o arquivo de imagem em uma string Base64 (Data URL)
+  // Este é o mesmo formato que a função de colar imagem já utiliza!
+  const reader = new FileReader();
+  
+  reader.onload = async (event) => {
+    const base64Image = event.target.result;
+    
+    // Criptografa a imagem da mesma forma que as outras mensagens
+    const payload = await cryptoUtils.encrypt(roomKey, base64Image);
+    
+    // Emite para o servidor no mesmo canal 'chat image'
+    socket.emit('chat image', payload);
+  };
+  
+  reader.readAsDataURL(file);
+
+  // Limpa o valor do input para que o usuário possa selecionar o mesmo arquivo novamente
+  imageInput.value = '';
 });
 
 const createNewMessageBubble = (data) => {
