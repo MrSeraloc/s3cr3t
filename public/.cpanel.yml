@@ -1,12 +1,1 @@
-<<<<<<< HEAD
----
-deployment:
-  tasks:
-    - export DEPLOYPATH=/home/e84uly7ard9e/public_html/
-=======
----
-deployment:
-  tasks:
-    - export DEPLOYPATH=/home/e84uly7ard9e/public_html/
->>>>>>> 5269f68a5cafe98b27b830039a3554ee9094d089
-    - /bin/cp -a . $DEPLOYPATH
+
