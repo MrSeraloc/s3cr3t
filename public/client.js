@@ -13,8 +13,6 @@ const darkThemeBtn = document.getElementById('dark-theme-btn');
 const imageModal = document.getElementById('image-modal');
 const modalImageContent = document.getElementById('modal-image-content');
 const closeModalBtn = document.querySelector('.close-modal');
-
-// --- NOVOS ELEMENTOS ---
 const userCountNumber = document.getElementById('user-count-number');
 const inviteBtn = document.getElementById('invite-btn');
 const faqBtn = document.getElementById('faq-btn');
@@ -96,16 +94,24 @@ const cryptoUtils = {
     }
 };
 
-// --- Lógica Principal ---
-// Garante que a conexão está estabelecida ANTES de tentar entrar na sala.
+// --- Lógica Principal com Depuração ---
 socket.on('connect', () => {
+    console.log('[CLIENT] Conectado ao servidor com sucesso! Socket ID:', socket.id);
     const roomId = window.location.pathname.substring(1);
     if (roomId) {
+        console.log('[CLIENT] Pedindo para entrar na sala:', roomId);
         socket.emit('join room', roomId);
     }
 });
 
 // --- Funções de UI ---
+const activateChatInput = () => {
+    console.log('%c[CLIENT] Chave de criptografia pronta! Ativando o chat...', 'color: lightgreen; font-weight: bold;');
+    input.disabled = false;
+    input.placeholder = translations[currentLang].placeholder;
+    input.focus();
+};
+
 const setLanguage = () => {
     const userLang = navigator.language.split('-')[0];
     currentLang = translations[userLang] ? userLang : 'en';
@@ -145,8 +151,8 @@ const setTheme = (theme) => {
 };
 
 const openImageModal = (src) => {
-    modalImageContent.src = src;
-    imageModal.style.display = 'flex';
+    if (modalImageContent) modalImageContent.src = src;
+    if (imageModal) imageModal.style.display = 'flex';
 };
 
 const createMessageBubble = (data) => {
@@ -171,6 +177,7 @@ const createMessageBubble = (data) => {
 // --- Event Listeners ---
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    console.log('Tentando enviar. Valor de roomKey:', roomKey);
     if (input.value && roomKey) {
         const payload = await cryptoUtils.encrypt(roomKey, input.value);
         socket.emit('chat message', payload);
@@ -226,16 +233,20 @@ darkThemeBtn.addEventListener('click', () => setTheme('dark'));
 closeModalBtn?.addEventListener('click', () => imageModal.style.display = 'none');
 imageModal?.addEventListener('click', (e) => { if (e.target === imageModal) imageModal.style.display = 'none'; });
 
-// --- Socket.IO Listeners ---
+// --- Socket.IO Listeners com Depuração ---
 socket.on('room-update', (data) => {
     if (userCountNumber) userCountNumber.textContent = data.count;
 });
 
 socket.on('existing-users', async (otherUsers) => {
+    console.log('[CLIENT] Recebi a lista de usuários existentes:', otherUsers);
     if (!keyPair) keyPair = await cryptoUtils.generateKeyPair();
     if (otherUsers.length === 0) {
+        console.log('[CLIENT] Sou o primeiro na sala. Gerando nova chave...');
         roomKey = await cryptoUtils.generateRoomKey();
+        activateChatInput();
     } else {
+        console.log('[CLIENT] Pedindo a chave para outro usuário...');
         const publicKey = await cryptoUtils.exportPublicKey(keyPair.publicKey);
         socket.emit('key-request', { target: otherUsers[0], publicKey });
     }
@@ -251,7 +262,9 @@ socket.on('key-request', async (payload) => {
 
 socket.on('key-response', async (payload) => {
     if (!roomKey) {
+        console.log('[CLIENT] Recebi a chave encriptada!');
         roomKey = await cryptoUtils.unwrapKey(keyPair.privateKey, payload.encryptedKey);
+        activateChatInput();
     }
 });
 
@@ -285,7 +298,7 @@ socket.on('chat image', async (data) => {
 socket.on('system message', (data) => {
     const item = document.createElement('li');
     item.classList.add('system-message');
-    const messageTemplate = translations[currentLang][data.key];
+    const messageTemplate = translations[currentLang][data.key] || '';
     item.textContent = messageTemplate.replace('{username}', data.username);
     messages.appendChild(item);
     messages.scrollTop = messages.scrollHeight;
