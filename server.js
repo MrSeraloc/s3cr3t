@@ -6,8 +6,12 @@ const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
-
+const io = new Server(server, {
+  cors: {
+    origin: "https://confessorium.com", // Seu domínio de produção
+    methods: ["GET", "POST"]
+  }
+});
 const PORT = process.env.PORT || 8080;
 
 app.use(express.static('public'));

@@ -1,10 +1,10 @@
-# Define o ambiente como Node.js
-runtime: nodejs20 # Ou nodejs18, etc., dependendo da sua versão
+runtime: nodejs18
 
-# Permite que o App Engine escale a aplicação, mantendo-a sempre online
+# Adicione estas linhas para garantir que uma instância esteja sempre ativa
+# e para habilitar a afinidade de sessão.
 instance_class: F1
-
-# Configuração de escalonamento automático, coberta pelo nível gratuito
 automatic_scaling:
   min_instances: 1
-  max_instances: 2
+
+network:
+  session_affinity: true
