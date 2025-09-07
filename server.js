@@ -68,33 +68,19 @@ io.on('connection', (socket) => {
     });
   });
 
-  // ============================ INÍCIO DA CORREÇÃO ============================
-  // Usamos o evento 'disconnecting' em vez de 'disconnect'.
-  // Ele é mais fiável para obter as salas do utilizador antes de ele sair.
+  
   socket.on('disconnecting', () => {
-    // a propriedade socket.rooms é um Set que contém o ID do próprio socket e as salas em que está.
     const rooms = Array.from(socket.rooms);
     const currentRoomId = rooms.find(room => room !== socket.id); // Encontra a sala de chat
     
     if (socket.username && currentRoomId) {
       console.log(`LOG: ${currentRoomId} | ${socket.username} | N/A | [DESCONECTOU-SE]`);
-      // Notifica os outros que o utilizador saiu
-      socket.to(currentRoomId).emit('system message', { key: 'userLeft', username: socket.username });
-      
-      // A atualização da contagem será feita após a desconexão total para ser precisa.
-      // O Socket.IO remove o utilizador da sala automaticamente entre 'disconnecting' e 'disconnect'.
+     socket.to(currentRoomId).emit('system message', { key: 'userLeft', username: socket.username });
     }
   });
-
-  // Mantemos o 'disconnect' para a lógica que deve acontecer DEPOIS de o utilizador sair da sala.
   socket.on('disconnect', () => {
-    // Já que não podemos confiar nas salas aqui, precisamos iterar para descobrir onde o utilizador estava.
-    // Esta é uma lógica de fallback, a principal está no 'disconnecting'.
-    // A melhor prática é apenas atualizar contagens e estados gerais aqui.
-    // A função 'updateRoomCount' já lida com a contagem corretamente após a saída do utilizador.
   });
-  // ============================ FIM DA CORREÇÃO ===============================
-
+  
   socket.on('chat message', (payload) => {
     const currentRoomId = Array.from(socket.rooms).find(room => room !== socket.id);
     if (socket.username && currentRoomId) {
