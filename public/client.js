@@ -289,11 +289,13 @@ socket.on('chat image', async (data) => {
     const decryptedImage = await cryptoUtils.decrypt(roomKey, data);
     if (!decryptedImage) return;
 
-    const bubble = createMessageBubble(data);
+    const bubble = createMessageBubble(data); // Cria o <li>
     const imageElement = document.createElement('img');
     imageElement.src = decryptedImage;
+    imageElement.classList.add('chat-image'); // Adiciona uma classe para estilização
     imageElement.addEventListener('click', () => openImageModal(decryptedImage));
-    bubble.appendChild(imageElement);
+
+    bubble.appendChild(imageElement); // <--- GARANTA QUE ESTA LINHA ESTÁ PRESENTE E CORRETA
 
     messages.scrollTop = messages.scrollHeight;
 });
