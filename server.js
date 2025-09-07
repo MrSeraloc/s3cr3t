@@ -8,53 +8,49 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// A porta agora é dinâmica, fornecida pelo Google App Engine, ou 8080 como padrão local.
 const PORT = process.env.PORT || 8080;
 
 app.use(express.static('public'));
 
-// =========== INÍCIO DA MODIFICAÇÃO ===========
-
-// 1. Rota principal '/' agora serve a sua nova página de splash.
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 2. Criamos uma nova rota '/new' que o botão da splash page irá chamar.
-//    Esta rota gera o ID da sala e redireciona o usuário para ela.
 app.get('/new', (req, res) => {
   const roomId = crypto.randomBytes(16).toString('hex');
   res.redirect(`/${roomId}`);
 });
 
-// =========== FIM DA MODIFICAÇÃO ===========
-
 app.get('/:roomId', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'chat.html'));
 });
 
-// ... o resto do seu código (io.on('connection', ...)) continua aqui ...
+// ================== NOVA FUNÇÃO ADICIONADA ==================
+// Função para atualizar e enviar a contagem de usuários para a sala
+function updateRoomCount(roomId) {
+    const room = io.sockets.adapter.rooms.get(roomId);
+    const count = room ? room.size : 0;
+    io.to(roomId).emit('room-update', { count: count });
+}
+// ==========================================================
 
 io.on('connection', (socket) => {
   const userIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
   socket.on('join room', async (roomId) => {
-    const room = io.sockets.adapter.rooms.get(roomId);
-    const otherUsers = room ? Array.from(room) : [];
-    
     socket.join(roomId);
     socket.room = roomId;
 
-    const updatedRoom = io.sockets.adapter.rooms.get(roomId);
-    const numClients = updatedRoom ? updatedRoom.size : 0;
+    const numClients = io.sockets.adapter.rooms.get(roomId)?.size || 0;
     socket.username = `Utilizador ${numClients}`;
 
-    // LOG CORRIGIDO: Escrevendo no console
     console.log(`LOG: ${roomId} | ${socket.username} | ${userIp} | [CONECTOU-SE]`);
-
-    socket.emit('existing-users', otherUsers);
-
+    
     io.to(roomId).emit('system message', { key: 'userJoined', username: socket.username });
+    
+    // =========== ATUALIZA A CONTAGEM PARA TODOS ===========
+    updateRoomCount(roomId);
+    // ====================================================
   });
 
   socket.on('key-request', (payload) => {
@@ -72,15 +68,18 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     if (socket.username && socket.room) {
-      // LOG CORRIGIDO: Escrevendo no console
       console.log(`LOG: ${socket.room} | ${socket.username} | N/A | [DESCONECTOU-SE]`);
       io.to(socket.room).emit('system message', { key: 'userLeft', username: socket.username });
+      
+      // =========== ATUALIZA A CONTAGEM PARA TODOS ===========
+      // Usamos um pequeno timeout para garantir que o socket saiu da sala antes de contar
+      setTimeout(() => updateRoomCount(socket.room), 100);
+      // ====================================================
     }
   });
 
   socket.on('chat message', (payload) => {
     if (socket.username && socket.room) {
-      // LOG CORRIGIDO: Escrevendo no console
       console.log(`LOG: ${socket.room} | ${socket.username} | ${userIp} | [MENSAGEM ENCRIPTADA]`);
       io.to(socket.room).emit('chat message', { 
         ...payload,
@@ -92,7 +91,6 @@ io.on('connection', (socket) => {
 
   socket.on('chat image', (payload) => {
     if (socket.username && socket.room) {
-      // LOG CORRIGIDO: Escrevendo no console
       console.log(`LOG: ${socket.room} | ${socket.username} | ${userIp} | [IMAGEM ENCRIPTADA]`);
       io.to(socket.room).emit('chat image', { 
         ...payload,
