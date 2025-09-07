@@ -1,6 +1,7 @@
 const socket = io();
 
 // --- Elementos do DOM ---
+const body = document.body;
 const messages = document.getElementById('messages');
 const form = document.getElementById('form');
 const input = document.getElementById('input');
@@ -10,13 +11,14 @@ const copyBubble = document.getElementById('copy-bubble');
 const lightThemeBtn = document.getElementById('light-theme-btn');
 const darkThemeBtn = document.getElementById('dark-theme-btn');
 const imageModal = document.getElementById('image-modal');
+const modalImageContent = document.getElementById('modal-image-content');
+const closeModalBtn = document.querySelector('.close-modal');
 
 // --- NOVOS ELEMENTOS ---
 const userCountNumber = document.getElementById('user-count-number');
 const inviteBtn = document.getElementById('invite-btn');
 const faqBtn = document.getElementById('faq-btn');
 const faqModal = document.getElementById('faq-modal');
-const closeFaqBtn = document.getElementById('close-faq-btn');
 const faqContainer = document.getElementById('faq-container');
 
 // --- Variáveis Globais ---
@@ -24,7 +26,7 @@ let roomKey = null;
 let keyPair = null;
 let currentLang = 'en';
 
-// --- Traduções (ADICIONAR NOVOS TEXTOS AQUI) ---
+// --- Traduções ---
 const translations = {
     en: {
         pageTitle: "Confessorium",
@@ -32,7 +34,6 @@ const translations = {
         userJoined: "{username} joined the chat.",
         userLeft: "{username} left the chat.",
         linkCopiedBubble: "Room link copied to clipboard!",
-        // --- TEXTOS DO FAQ ---
         faqTitle: "FAQ - Your Privacy",
         q1Title: "Do I need an account?",
         q1Answer: "No. Confessorium is 100% anonymous. We don't ask for your name, email, or any personal information.",
@@ -51,7 +52,6 @@ const translations = {
         userJoined: "{username} entrou no chat.",
         userLeft: "{username} saiu do chat.",
         linkCopiedBubble: "Link da sala copiado!",
-        // --- TEXTOS DO FAQ ---
         faqTitle: "FAQ - A Sua Privacidade",
         q1Title: "Preciso de me registar?",
         q1Answer: "Não. O Confessorium é 100% anónimo. Não pedimos o seu nome, e-mail ou qualquer informação pessoal.",
@@ -66,8 +66,35 @@ const translations = {
     }
 };
 
-// --- Funções de Criptografia (sem alterações) ---
-const cryptoUtils = { /* ... seu código cryptoUtils existente ... */ };
+// --- Funções de Criptografia ---
+const cryptoUtils = {
+    async generateRoomKey() { return await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]); },
+    async generateKeyPair() { return await window.crypto.subtle.generateKey({ name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["wrapKey", "unwrapKey"]); },
+    async encrypt(key, data) {
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        const encodedData = new TextEncoder().encode(data);
+        const encryptedContent = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, encodedData);
+        return { iv: Array.from(iv), encrypted: Array.from(new Uint8Array(encryptedContent)) };
+    },
+    async decrypt(key, payload) {
+        try {
+            const iv = new Uint8Array(payload.iv);
+            const data = new Uint8Array(payload.encrypted);
+            const decryptedContent = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data);
+            return new TextDecoder().decode(decryptedContent);
+        } catch (e) { console.error("Erro ao desencriptar:", e); return null; }
+    },
+    async exportPublicKey(key) { return await window.crypto.subtle.exportKey("jwk", key); },
+    async importPublicKey(jwk) { return await window.crypto.subtle.importKey("jwk", jwk, { name: "RSA-OAEP", hash: "SHA-256" }, true, ["wrapKey"]); },
+    async wrapKey(publicKey, keyToWrap) {
+        const wrapped = await window.crypto.subtle.wrapKey("raw", keyToWrap, publicKey, { name: "RSA-OAEP", hash: "SHA-256" });
+        return Array.from(new Uint8Array(wrapped));
+    },
+    async unwrapKey(privateKey, wrappedKey) {
+        const keyData = new Uint8Array(wrappedKey);
+        return await window.crypto.subtle.unwrapKey("raw", keyData, privateKey, { name: "RSA-OAEP", hash: "SHA-256" }, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+    }
+};
 
 // --- Lógica Principal ---
 const roomId = window.location.pathname.substring(1);
@@ -79,72 +106,104 @@ const setLanguage = () => {
     currentLang = translations[userLang] ? userLang : 'en';
     document.documentElement.lang = currentLang;
     
-    // Traduz elementos gerais
     document.querySelectorAll('[data-translate-key]').forEach(el => {
         const key = el.getAttribute('data-translate-key');
-        if(translations[currentLang][key]) el.innerHTML = translations[currentLang][key];
+        if (translations[currentLang][key]) {
+            if (el.tagName === 'INPUT') el.placeholder = translations[currentLang][key];
+            else el.innerHTML = translations[currentLang][key];
+        }
     });
 
-    // --- MONTA O CONTEÚDO DO FAQ DINAMICAMENTE ---
     faqContainer.innerHTML = `
         <span id="close-faq-btn">&times;</span>
-        <h3 data-translate-key="faqTitle">${translations[currentLang].faqTitle}</h3>
-        <div class="faq-item">
-            <h4 data-translate-key="q1Title">${translations[currentLang].q1Title}</h4>
-            <p data-translate-key="q1Answer">${translations[currentLang].q1Answer}</p>
-        </div>
-        <div class="faq-item">
-            <h4 data-translate-key="q2Title">${translations[currentLang].q2Title}</h4>
-            <p data-translate-key="q2Answer">${translations[currentLang].q2Answer}</p>
-        </div>
-        <div class="faq-item">
-            <h4 data-translate-key="q3Title">${translations[currentLang].q3Title}</h4>
-            <p data-translate-key="q3Answer">${translations[currentLang].q3Answer}</p>
-        </div>
-        <div class="faq-item">
-            <h4 data-translate-key="q4Title">${translations[currentLang].q4Title}</h4>
-            <p data-translate-key="q4Answer">${translations[currentLang].q4Answer}</p>
-        </div>
-        <div class="faq-item">
-            <h4 data-translate-key="q5Title">${translations[currentLang].q5Title}</h4>
-            <p data-translate-key="q5Answer">${translations[currentLang].q5Answer}</p>
-        </div>
-    `;
-    // É preciso pegar o botão de fechar de novo, pois ele foi recriado
+        <h3>${translations[currentLang].faqTitle}</h3>
+        <div class="faq-item"><h4>${translations[currentLang].q1Title}</h4><p>${translations[currentLang].q1Answer}</p></div>
+        <div class="faq-item"><h4>${translations[currentLang].q2Title}</h4><p>${translations[currentLang].q2Answer}</p></div>
+        <div class="faq-item"><h4>${translations[currentLang].q3Title}</h4><p>${translations[currentLang].q3Answer}</p></div>
+        <div class="faq-item"><h4>${translations[currentLang].q4Title}</h4><p>${translations[currentLang].q4Answer}</p></div>
+        <div class="faq-item"><h4>${translations[currentLang].q5Title}</h4><p>${translations[currentLang].q5Answer}</p></div>`;
+    
     document.getElementById('close-faq-btn').addEventListener('click', () => faqModal.classList.add('hidden'));
+};
+
+const setTheme = (theme) => {
+    if (theme === 'dark') {
+        body.classList.remove('light-theme');
+        darkThemeBtn.classList.add('active');
+        lightThemeBtn.classList.remove('active');
+    } else {
+        body.classList.add('light-theme');
+        lightThemeBtn.classList.add('active');
+        darkThemeBtn.classList.remove('active');
+    }
+    localStorage.setItem('theme', theme);
+};
+
+const openImageModal = (src) => {
+    modalImageContent.src = src;
+    imageModal.style.display = 'flex';
 };
 
 const createMessageBubble = (data) => {
     const item = document.createElement('li');
     item.classList.add(data.senderId === socket.id ? 'my-message' : 'other-message');
-
     const header = document.createElement('div');
     header.classList.add('message-header');
-    
     const sender = document.createElement('span');
     sender.classList.add('message-sender');
     sender.textContent = data.username;
-
-    // --- ADICIONA O TIMESTAMP ---
     const timestamp = document.createElement('span');
     timestamp.classList.add('message-timestamp');
     timestamp.textContent = new Date().toLocaleTimeString(navigator.language, { hour: '2-digit', minute:'2-digit' });
-    
     header.appendChild(sender);
     header.appendChild(timestamp);
     item.appendChild(header);
-    
     messages.appendChild(item);
     return item;
 };
 
 // --- Event Listeners ---
-form.addEventListener('submit', async (e) => { /* ... código existente ... */ });
-input.addEventListener('paste', (e) => { /* ... código existente ... */ });
-attachBtn.addEventListener('click', () => imageInput.click());
-imageInput.addEventListener('change', (e) => { /* ... código existente ... */ });
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (input.value && roomKey) {
+        const payload = await cryptoUtils.encrypt(roomKey, input.value);
+        socket.emit('chat message', payload);
+        input.value = '';
+    }
+});
 
-// --- NOVO: Listener do botão de convite ---
+input.addEventListener('paste', (e) => {
+    if (!roomKey) return;
+    const items = e.clipboardData.items;
+    for (const item of items) {
+        if (item.type.indexOf('image') !== -1) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const payload = await cryptoUtils.encrypt(roomKey, event.target.result);
+                socket.emit('chat image', payload);
+            };
+            reader.readAsDataURL(file);
+            return;
+        }
+    }
+});
+
+attachBtn.addEventListener('click', () => imageInput.click());
+
+imageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file || !roomKey) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const payload = await cryptoUtils.encrypt(roomKey, event.target.result);
+        socket.emit('chat image', payload);
+    };
+    reader.readAsDataURL(file);
+    imageInput.value = '';
+});
+
 inviteBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(window.location.href).then(() => {
         copyBubble.textContent = translations[currentLang].linkCopiedBubble;
@@ -153,14 +212,41 @@ inviteBtn.addEventListener('click', () => {
     });
 });
 
-// --- NOVO: Listeners do Modal de FAQ ---
 faqBtn.addEventListener('click', () => faqModal.classList.remove('hidden'));
 faqModal.addEventListener('click', (e) => { if (e.target === faqModal) faqModal.classList.add('hidden'); });
 
+lightThemeBtn.addEventListener('click', () => setTheme('light'));
+darkThemeBtn.addEventListener('click', () => setTheme('dark'));
+closeModalBtn?.addEventListener('click', () => imageModal.style.display = 'none');
+imageModal?.addEventListener('click', (e) => { if (e.target === imageModal) imageModal.style.display = 'none'; });
+
 // --- Socket.IO Listeners ---
-// --- NOVO: Listener para atualização da sala (contador) ---
 socket.on('room-update', (data) => {
     if (userCountNumber) userCountNumber.textContent = data.count;
+});
+
+socket.on('existing-users', async (otherUsers) => {
+    if (!keyPair) keyPair = await cryptoUtils.generateKeyPair();
+    if (otherUsers.length === 0) {
+        roomKey = await cryptoUtils.generateRoomKey();
+    } else {
+        const publicKey = await cryptoUtils.exportPublicKey(keyPair.publicKey);
+        socket.emit('key-request', { target: otherUsers[0], publicKey });
+    }
+});
+
+socket.on('key-request', async (payload) => {
+    if (roomKey) {
+        const importedPublicKey = await cryptoUtils.importPublicKey(payload.publicKey);
+        const encryptedKey = await cryptoUtils.wrapKey(importedPublicKey, roomKey);
+        socket.emit('key-response', { target: payload.requesterId, encryptedKey });
+    }
+});
+
+socket.on('key-response', async (payload) => {
+    if (!roomKey) {
+        roomKey = await cryptoUtils.unwrapKey(keyPair.privateKey, payload.encryptedKey);
+    }
 });
 
 socket.on('chat message', async (data) => {
@@ -176,10 +262,30 @@ socket.on('chat message', async (data) => {
     messages.scrollTop = messages.scrollHeight;
 });
 
-socket.on('chat image', async (data) => { /* ... código existente, mas usando createMessageBubble ... */ });
-socket.on('system message', (data) => { /* ... código existente ... */ });
-// ... outros listeners de socket ...
+socket.on('chat image', async (data) => {
+    if (!roomKey) return;
+    const decryptedImage = await cryptoUtils.decrypt(roomKey, data);
+    if (!decryptedImage) return;
+
+    const bubble = createMessageBubble(data);
+    const imageElement = document.createElement('img');
+    imageElement.src = decryptedImage;
+    imageElement.addEventListener('click', () => openImageModal(decryptedImage));
+    bubble.appendChild(imageElement);
+
+    messages.scrollTop = messages.scrollHeight;
+});
+
+socket.on('system message', (data) => {
+    const item = document.createElement('li');
+    item.classList.add('system-message');
+    const messageTemplate = translations[currentLang][data.key];
+    item.textContent = messageTemplate.replace('{username}', data.username);
+    messages.appendChild(item);
+    messages.scrollTop = messages.scrollHeight;
+});
 
 // --- Inicialização ---
 setLanguage();
-// ... código de tema e outros ...
+const savedTheme = localStorage.getItem('theme') || 'dark';
+setTheme(savedTheme);
