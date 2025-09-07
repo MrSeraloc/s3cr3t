@@ -14,12 +14,8 @@ const io = new Server(server, {
 });
 const PORT = process.env.PORT || 8080;
 
-// ============================ INÍCIO DAS MUDANÇAS ============================
-// Armazenamento em memória para mapear sessionId -> dados do usuário
-// e para manter o estado da sala (como o contador de usuários)
 const sessionMap = new Map();
 const roomState = new Map();
-// ============================ FIM DAS MUDANÇAS ===============================
 
 app.use(express.static('public'));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
@@ -35,33 +31,22 @@ function updateRoomCount(roomId) {
 io.on('connection', (socket) => {
   const userIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
-  // ============================ LÓGICA DE JOIN COMPLETAMENTE REFEITA ============================
   socket.on('join room', async ({ roomId, sessionId }) => {
-    
-    // Garante que a sala tem um estado inicial
     if (!roomState.has(roomId)) {
         roomState.set(roomId, { userCounter: 0, users: new Map() });
     }
     const currentRoom = roomState.get(roomId);
 
-    // O usuário está voltando? (Verifica se já conhecemos este sessionId na sala)
     if (currentRoom.users.has(sessionId)) {
         const returningUser = currentRoom.users.get(sessionId);
-        
-        // Desconecta o socket antigo (fantasma) se ele ainda existir
         const oldSocketId = returningUser.socketId;
         if (io.sockets.sockets.get(oldSocketId)) {
-            console.log(`LOG: Desconectando socket fantasma ${oldSocketId}`);
             io.sockets.sockets.get(oldSocketId).disconnect(true);
         }
-
-        // Reassocia o novo socket ao usuário existente
         returningUser.socketId = socket.id;
         socket.username = returningUser.username;
-        console.log(`LOG: Usuário ${socket.username} reconectou com sessionId ${sessionId}`);
-
+        sessionMap.set(socket.id, { sessionId, roomId }); // Atualiza o sessionMap para o novo socket
     } else {
-        // É um usuário novo na sala
         currentRoom.userCounter++;
         const newUser = {
             username: `Utilizador ${currentRoom.userCounter}`,
@@ -71,7 +56,6 @@ io.on('connection', (socket) => {
         currentRoom.users.set(sessionId, newUser);
         sessionMap.set(socket.id, { sessionId, roomId });
         socket.username = newUser.username;
-        console.log(`LOG: Novo usuário ${socket.username} entrou com sessionId ${sessionId}`);
     }
 
     const roomSockets = await io.in(roomId).fetchSockets();
@@ -86,24 +70,23 @@ io.on('connection', (socket) => {
     
     updateRoomCount(roomId);
   });
-  // ============================ FIM DA LÓGICA DE JOIN ===============================
-
 
   socket.on('disconnecting', () => {
     const sessionInfo = sessionMap.get(socket.id);
-    if (!sessionInfo) return; // Se não estiver no mapa, já foi tratado (ex: fantasma)
+    if (!sessionInfo) return;
 
-    const { roomId } = sessionInfo;
+    const { roomId, sessionId } = sessionInfo;
     const currentRoom = roomState.get(roomId);
-    const user = currentRoom?.users.get(sessionInfo.sessionId);
 
-    if (user) {
-        console.log(`LOG: ${roomId} | ${user.username} | N/A | [DESCONECTOU-SE]`);
-        socket.to(roomId).emit('system message', { key: 'userLeft', username: user.username });
-        
-        // Se a sala ficar vazia após a desconexão, limpa o estado dela
-        const roomSize = io.sockets.adapter.rooms.get(roomId)?.size;
-        if (roomSize === 1) { // Só este socket está saindo
+    // Só remove o utilizador da lógica de sessão se for o socket atual dele
+    const userInRoom = currentRoom?.users.get(sessionId);
+    if (userInRoom && userInRoom.socketId === socket.id) {
+        currentRoom.users.delete(sessionId);
+        console.log(`LOG: Utilizador ${userInRoom.username} com sessionId ${sessionId} removido do estado da sala.`);
+
+        socket.to(roomId).emit('system message', { key: 'userLeft', username: userInRoom.username });
+
+        if (currentRoom.users.size === 0) {
             roomState.delete(roomId);
             console.log(`LOG: Sala ${roomId} está vazia. Limpando estado.`);
         }
@@ -113,8 +96,46 @@ io.on('connection', (socket) => {
     sessionMap.delete(socket.id);
   });
 
-  // O resto dos listeners (key-request, chat message, etc.) continuam iguais
-  // ...
+  // ============================ INÍCIO DO CÓDIGO RESTAURADO ============================
+  // Estes são os blocos que estavam em falta e que são essenciais para a comunicação
+
+  socket.on('key-request', (payload) => {
+    // Reencaminha o pedido de chave para o alvo correto
+    socket.to(payload.target).emit('key-request', {
+      requesterId: socket.id,
+      publicKey: payload.publicKey
+    });
+  });
+
+  socket.on('key-response', (payload) => {
+    // Reencaminha a resposta da chave para o requisitante original
+    socket.to(payload.target).emit('key-response', {
+      encryptedKey: payload.encryptedKey
+    });
+  });
+
+  socket.on('chat message', (payload) => {
+    // Reenvia a mensagem para todos na sala
+    if (socket.username && socket.room) {
+      io.to(socket.room).emit('chat message', { 
+        ...payload,
+        senderId: socket.id,
+        username: socket.username
+      });
+    }
+  });
+
+  socket.on('chat image', (payload) => {
+    // Reenvia a imagem para todos na sala
+    if (socket.username && socket.room) {
+      io.to(socket.room).emit('chat image', { 
+        ...payload,
+        senderId: socket.id,
+        username: socket.username
+      });
+    }
+  });
+  // ============================ FIM DO CÓDIGO RESTAURADO ===============================
 });
 
 server.listen(PORT, () => {
