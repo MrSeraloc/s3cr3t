@@ -159,7 +159,8 @@ const createMessageBubble = (data) => {
     sender.textContent = data.username;
     const timestamp = document.createElement('span');
     timestamp.classList.add('message-timestamp');
-    timestamp.textContent = new Date().toLocaleTimeString(navigator.language, { hour: '2-digit', minute:'2-digit' });
+    const messageTime = data.timestamp ? new Date(data.timestamp) : new Date();
+    timestamp.textContent = messageTime.toLocaleTimeString(navigator.language, { hour: '2-digit', minute:'2-digit' });
     header.appendChild(sender);
     header.appendChild(timestamp);
     item.appendChild(header);
