@@ -97,8 +97,13 @@ const cryptoUtils = {
 };
 
 // --- Lógica Principal ---
-const roomId = window.location.pathname.substring(1);
-if (roomId) socket.emit('join room', roomId);
+// Garante que a conexão está estabelecida ANTES de tentar entrar na sala.
+socket.on('connect', () => {
+    const roomId = window.location.pathname.substring(1);
+    if (roomId) {
+        socket.emit('join room', roomId);
+    }
+});
 
 // --- Funções de UI ---
 const setLanguage = () => {
