@@ -38,9 +38,13 @@ const sessionMap = new Map();
 const roomState = new Map();
 const rateLimitMap = new Map();
 const emptyRoomTimers = new Map(); // Track grace period timers for empty rooms
+const inviteTokens = new Map(); // Map<token, { roomId, createdAt, used }>
 
 // Grace period: 60 seconds before blocking an empty room
 const EMPTY_ROOM_GRACE_PERIOD = 60000; // 60 seconds
+
+// Invite token expiry: 60 minutes
+const INVITE_TOKEN_EXPIRY = 60 * 60 * 1000;
 
 // --- Rate Limiting ---
 const RATE_LIMIT_WINDOW = 1000; // 1 second
@@ -78,6 +82,12 @@ setInterval(() => {
             // Block the room for 720 hours (30 days) to prevent reuse
             blockRoom(roomId);
             console.log(`LOG: Sala ${roomId} expirou. Bloqueando para 30 dias.`);
+        }
+    }
+    // Clean up expired/used invite tokens
+    for (const [token, data] of inviteTokens.entries()) {
+        if (data.used || now - data.createdAt >= INVITE_TOKEN_EXPIRY) {
+            inviteTokens.delete(token);
         }
     }
 }, CLEANUP_INTERVAL);
@@ -401,6 +411,60 @@ app.get('/api/rooms-count', (req, res) => {
     const blocked = BigInt(blockedRooms.size);
     const available = total - blocked;
     res.json({ count: available.toString() });
+});
+
+// --- Invite Token Generation ---
+app.post('/api/invite/:roomId', (req, res) => {
+    const { roomId } = req.params;
+
+    if (!/^[a-f0-9]{32}$/.test(roomId)) {
+        return res.status(400).json({ error: 'Invalid room ID.' });
+    }
+
+    if (isRoomBlocked(roomId)) {
+        return res.status(403).json({ error: 'Room is blocked.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+
+    inviteTokens.set(token, {
+        roomId,
+        createdAt: Date.now(),
+        used: false
+    });
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['host'];
+    const inviteUrl = `${protocol}://${host}/invite/${token}`;
+
+    console.log(`LOG: Token de convite gerado para sala ${roomId.substring(0, 8)}...`);
+
+    res.json({ inviteUrl, token, expiresIn: INVITE_TOKEN_EXPIRY });
+});
+
+// --- Invite Token Redemption ---
+app.get('/invite/:token', (req, res) => {
+    const { token } = req.params;
+
+    if (!/^[a-f0-9]{64}$/.test(token)) {
+        return res.sendFile(path.join(__dirname, 'public', 'invite-invalid.html'));
+    }
+
+    const tokenData = inviteTokens.get(token);
+
+    if (!tokenData || tokenData.used) {
+        return res.sendFile(path.join(__dirname, 'public', 'invite-invalid.html'));
+    }
+
+    if (Date.now() - tokenData.createdAt >= INVITE_TOKEN_EXPIRY) {
+        inviteTokens.delete(token);
+        return res.sendFile(path.join(__dirname, 'public', 'invite-invalid.html'));
+    }
+
+    tokenData.used = true;
+    console.log(`LOG: Token de convite consumido para sala ${tokenData.roomId.substring(0, 8)}...`);
+
+    res.redirect(`/${tokenData.roomId}`);
 });
 
 app.get('/:roomId', (req, res) => {

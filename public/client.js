@@ -91,6 +91,7 @@ const translations = {
         userRenamed: "{oldName} is now {newName}.",
         renameTaken: "Name already in use in this room.",
         linkCopiedBubble: "Room link copied to clipboard!",
+        inviteLinkCopied: "Invite link copied! Single-use, expires in 60 min.",
         rateLimited: "Slow down! You're sending messages too fast.",
         imageTooLarge: "Image is too large. Max 5MB allowed.",
         roomExpired: "This room has expired and been destroyed.",
@@ -147,6 +148,7 @@ const translations = {
         userRenamed: "{oldName} agora é {newName}.",
         renameTaken: "Nome já em uso nesta sala.",
         linkCopiedBubble: "Link da sala copiado!",
+        inviteLinkCopied: "Link de convite copiado! Uso unico, expira em 60 min.",
         rateLimited: "Devagar! Você está enviando mensagens rápido demais.",
         imageTooLarge: "Imagem muito grande. Máximo de 5MB permitido.",
         roomExpired: "Esta sala expirou e foi destruída.",
@@ -983,17 +985,40 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Invite (copy link)
-inviteBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-        showToast(translations[currentLang].linkCopiedBubble);
-    });
+// Invite (copy link) — generates single-use token
+inviteBtn.addEventListener('click', async () => {
+    const roomId = window.location.pathname.substring(1);
+    if (!roomId) return;
+
+    try {
+        const response = await fetch(`/api/invite/${roomId}`, { method: 'POST' });
+        if (!response.ok) throw new Error('Failed to generate invite');
+        const data = await response.json();
+        await navigator.clipboard.writeText(data.inviteUrl);
+        showToast(translations[currentLang].inviteLinkCopied || translations[currentLang].linkCopiedBubble);
+    } catch (err) {
+        console.error('Invite generation failed:', err);
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            showToast(translations[currentLang].linkCopiedBubble);
+        });
+    }
 });
 
-// Invite long-press or right-click -> QR code
-inviteBtn.addEventListener('contextmenu', (e) => {
+// Invite long-press or right-click -> QR code with token
+inviteBtn.addEventListener('contextmenu', async (e) => {
     e.preventDefault();
-    generateQRCode(window.location.href);
+    const roomId = window.location.pathname.substring(1);
+    if (!roomId) return;
+
+    try {
+        const response = await fetch(`/api/invite/${roomId}`, { method: 'POST' });
+        if (!response.ok) throw new Error('Failed to generate invite');
+        const data = await response.json();
+        generateQRCode(data.inviteUrl);
+    } catch (err) {
+        console.error('Invite QR generation failed:', err);
+        generateQRCode(window.location.href);
+    }
     qrModal.classList.remove('hidden');
 });
 
