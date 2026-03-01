@@ -1,0 +1,13 @@
+runtime: nodejs22
+
+# Adicione estas linhas para garantir que uma instância esteja sempre ativa
+# e para habilitar a afinidade de sessão.
+instance_class: F1
+automatic_scaling:
+  min_instances: 1
+
+network:
+  session_affinity: true
+
+env_variables:
+  DASHBOARD_PASSWORD: "d2o2i2s2"

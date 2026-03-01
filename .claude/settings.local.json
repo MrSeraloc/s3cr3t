@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(taskkill:*)",
+      "Bash(node -c:*)",
+      "Bash(node -e:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install:*)",
+      "Bash(timeout 3 node:*)",
+      "Bash(cd:*)",
+      "Bash(timeout 5 bash -c 'until curl -s http://localhost:8080 > /dev/null; do :; done')",
+      "Bash(curl:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}

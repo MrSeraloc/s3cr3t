@@ -1,0 +1,8 @@
+.chat-image {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin-top: 6px;
+    border-radius: 10px;
+    cursor: zoom-in;
+}

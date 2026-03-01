@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sala Bloqueada - Confessorium</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0a;
+            --surface: #1a1a1a;
+            --surface-hover: #252525;
+            --border: rgba(255, 255, 255, 0.1);
+            --border-hover: rgba(255, 255, 255, 0.15);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666;
+            --accent: #00ff41;
+            --accent-dark: #00cc33;
+            --accent-subtle: rgba(0, 255, 65, 0.1);
+            --warning: #ff4444;
+        }
+
+        body.light-theme {
+            --bg: #f8f8f8;
+            --surface: #ffffff;
+            --surface-hover: #f0f0f0;
+            --border: rgba(0, 0, 0, 0.1);
+            --border-hover: rgba(0, 0, 0, 0.15);
+            --text-primary: #0a0a0a;
+            --text-secondary: #555;
+            --text-muted: #999;
+            --accent: #00cc33;
+            --accent-dark: #009922;
+            --accent-subtle: rgba(0, 204, 51, 0.1);
+            --warning: #cc0000;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s, color 0.3s;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Matrix background canvas */
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Theme switcher (top-right) */
+        .theme-switcher-wrapper {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .theme-icons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .theme-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .theme-icon.active {
+            color: var(--accent);
+            transform: scale(1.15);
+        }
+
+        /* Toggle switch */
+        .toggle-switch {
+            position: relative;
+            width: 52px;
+            height: 26px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: rgba(0, 255, 65, 0.15);
+            border-color: rgba(0, 255, 65, 0.3);
+        }
+
+        .toggle-knob {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: var(--text-secondary);
+            border-radius: 11px;
+            left: 2px;
+            top: 2px;
+            transition: left 0.3s, background 0.3s;
+        }
+
+        .toggle-switch.active .toggle-knob {
+            left: 28px;
+            background: var(--accent);
+        }
+
+        /* Main content */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 700px;
+            width: 100%;
+            padding: 2.5rem;
+            text-align: center;
+        }
+
+        /* Fade-in animation */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+
+        .blocked-card {
+            animation: fadeUp 0.8s ease-out;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 4rem 3.5rem;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .lock-icon-wrapper {
+            margin-bottom: 2.5rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .lock-icon {
+            width: 90px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 68, 68, 0.1);
+            border: 2px solid rgba(255, 68, 68, 0.25);
+            border-radius: 24px;
+            color: var(--warning);
+            animation: bounce 2s infinite;
+        }
+
+        .lock-icon svg {
+            width: 55px;
+            height: 55px;
+            stroke: var(--warning);
+            fill: none;
+            stroke-width: 1.5;
+        }
+
+        h1 {
+            font-size: clamp(1.8rem, 5vw, 2.6rem);
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -0.8px;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            font-size: 1.05rem;
+            font-weight: 400;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            margin-bottom: 2.5rem;
+        }
+
+        .expiry-info {
+            background: rgba(255, 68, 68, 0.08);
+            border: 1px solid rgba(255, 68, 68, 0.2);
+            border-radius: 16px;
+            padding: 1.8rem;
+            margin-bottom: 2.5rem;
+            font-size: 0.95rem;
+        }
+
+        .expiry-info .label {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-bottom: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        .expiry-info .date {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--warning);
+            font-family: 'Space Mono', monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .description {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 2.5rem;
+            font-weight: 400;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 14px;
+            flex-direction: column;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: 'Space Grotesk', sans-serif;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+            box-shadow: 0 8px 24px rgba(0, 255, 65, 0.2);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 12px 32px rgba(0, 255, 65, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1.5px solid var(--border-hover);
+        }
+
+        .btn-secondary:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: var(--accent-subtle);
+        }
+
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.78rem;
+            font-weight: 400;
+            color: var(--text-muted);
+            letter-spacing: 0.3px;
+        }
+
+        footer p {
+            margin: 0.5rem 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .container { padding: 1rem; }
+            .blocked-card { padding: 2.5rem 1.5rem; }
+            .lock-icon { width: 70px; height: 70px; }
+            .lock-icon svg { width: 45px; height: 45px; }
+            .theme-switcher-wrapper { top: 16px; right: 16px; }
+            h1 { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+    <div class="theme-switcher-wrapper">
+        <div class="theme-icons">
+            <span class="theme-icon active" id="sun-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.64 5.64a.996.996 0 10-1.41 1.41l1.06 1.06a.996.996 0 101.41-1.41L5.64 5.64zm12.73 12.73a.996.996 0 10-1.41 1.41l1.06 1.06a.996.996 0 101.41-1.41l-1.06-1.06zM18.36 5.64a.996.996 0 00-1.41 0l-1.06 1.06a.996.996 0 101.41 1.41l1.06-1.06c.39-.39.39-1.03 0-1.41zM5.64 18.36a.996.996 0 00-1.41 0l-1.06 1.06a.996.996 0 101.41 1.41l1.06-1.06c.39-.39.39-1.02 0-1.41z"/>
+                </svg>
+            </span>
+            <span class="theme-icon" id="moon-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/>
+                </svg>
+            </span>
+        </div>
+        <div class="toggle-switch" id="theme-toggle">
+            <div class="toggle-knob"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="blocked-card">
+            <div class="lock-icon-wrapper">
+                <div class="lock-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <h1>Sala Bloqueada</h1>
+            <p class="subtitle">Esta sala foi usada anteriormente e está temporariamente bloqueada.</p>
+
+            <div class="expiry-info">
+                <div class="label">Disponível novamente em:</div>
+                <div class="date" id="expiry-date">--/-- -- --:--</div>
+            </div>
+
+            <p class="description">
+                As salas do Confessorium são efêmeras e temporárias. Para proteger sua privacidade e segurança, cada sala só pode ser utilizada uma vez. Quando todos os participantes saem, a sala é bloqueada por 30 dias antes de poder ser reutilizada.
+            </p>
+
+            <div class="button-group">
+                <a href="/new" class="btn btn-primary">Criar Nova Sala</a>
+                <a href="/" class="btn btn-secondary">Voltar ao Início</a>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2026 Confessorium &mdash; A privacidade não é uma opção, é um direito.</p>
+        </footer>
+    </div>
+
+    <script>
+    (() => {
+        // Matrix background effect
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        const body = document.body;
+
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Matrix effect
+        const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+        const charArray = chars.split('');
+        const fontSize = 16;
+        const columns = () => Math.floor(canvas.width / fontSize);
+        let drops = Array(Math.floor(columns())).fill(0);
+
+        // Update drops array on resize
+        window.addEventListener('resize', () => {
+            drops = Array(Math.floor(columns())).fill(0);
+        });
+
+        function drawMatrix() {
+            // Clear with transparency
+            ctx.fillStyle = body.classList.contains('light-theme')
+                ? 'rgba(248, 248, 248, 0.05)'
+                : 'rgba(10, 10, 10, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Set character color based on theme
+            ctx.fillStyle = body.classList.contains('light-theme')
+                ? 'rgba(0, 204, 51, 0.35)'
+                : 'rgba(0, 255, 65, 0.3)';
+            ctx.font = `${fontSize}px 'Space Mono', monospace`;
+            ctx.textAlign = 'center';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = charArray[Math.floor(Math.random() * charArray.length)];
+                ctx.fillText(text, i * fontSize + fontSize / 2, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        function animate() {
+            drawMatrix();
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Parse URL params to get expiry date
+        const params = new URLSearchParams(window.location.search);
+        const expiryDate = params.get('expires');
+
+        // Display expiry date
+        if (expiryDate) {
+            try {
+                const date = new Date(parseInt(expiryDate));
+                const formatted = date.toLocaleString('pt-PT', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                document.getElementById('expiry-date').textContent = formatted;
+            } catch (e) {
+                console.error('Invalid expiry date:', e);
+            }
+        }
+
+        // Theme switching
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+
+        // Load saved theme (respects system preference if not set)
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const savedTheme = localStorage.getItem('theme') || (systemDark ? 'dark' : 'light');
+        if (savedTheme === 'light') {
+            body.classList.add('light-theme');
+            themeToggle.classList.add('active');
+            sunIcon.classList.add('active');
+            moonIcon.classList.remove('active');
+        } else {
+            sunIcon.classList.remove('active');
+            moonIcon.classList.add('active');
+        }
+
+        // Listen for system theme changes (only if no user preference)
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                const newTheme = e.matches ? 'dark' : 'light';
+                if (newTheme === 'light') {
+                    body.classList.add('light-theme');
+                    themeToggle.classList.add('active');
+                    sunIcon.classList.add('active');
+                    moonIcon.classList.remove('active');
+                } else {
+                    body.classList.remove('light-theme');
+                    themeToggle.classList.remove('active');
+                    sunIcon.classList.remove('active');
+                    moonIcon.classList.add('active');
+                }
+            }
+        });
+
+        themeToggle.addEventListener('click', () => {
+            const isLight = body.classList.toggle('light-theme');
+            themeToggle.classList.toggle('active');
+
+            if (isLight) {
+                sunIcon.classList.add('active');
+                moonIcon.classList.remove('active');
+            } else {
+                sunIcon.classList.remove('active');
+                moonIcon.classList.add('active');
+            }
+
+            const newTheme = body.classList.contains('light-theme') ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+        });
+    })();
+    </script>
+</body>
+</html>

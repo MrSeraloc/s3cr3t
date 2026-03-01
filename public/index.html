@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confessorium - Chat Secreto e Anônimo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0a;
+            --surface: #1a1a1a;
+            --surface-hover: #252525;
+            --border: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666;
+            --accent: #00ff41;
+            --accent-dark: #00cc33;
+        }
+
+        body.light-theme {
+            --bg: #f8f8f8;
+            --surface: #ffffff;
+            --surface-hover: #f0f0f0;
+            --border: rgba(0, 0, 0, 0.1);
+            --text-primary: #0a0a0a;
+            --text-secondary: #555;
+            --text-muted: #999;
+            --accent: #00cc33;
+            --accent-dark: #009922;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Matrix Background */
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Theme Switcher */
+        .theme-switcher-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .theme-icons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .theme-icon {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .theme-icon.active {
+            color: var(--accent);
+            transform: scale(1.2);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: rgba(0, 255, 65, 0.15);
+            border-color: rgba(0, 255, 65, 0.3);
+        }
+
+        .toggle-knob {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: var(--text-secondary);
+            border-radius: 10px;
+            left: 2px;
+            top: 2px;
+            transition: left 0.3s, background 0.3s;
+        }
+
+        .toggle-switch.active .toggle-knob {
+            left: 26px;
+            background: var(--accent);
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            width: 100%;
+            padding: 2rem;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 65, 0); }
+            50% { box-shadow: 0 0 30px rgba(0, 255, 65, 0.1); }
+        }
+
+        .hero-card {
+            animation: fadeUp 0.8s ease-out;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 3.5rem;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .logo {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            font-family: 'Space Mono', monospace;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -1px;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--text-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            font-weight: 300;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            margin-bottom: 2.5rem;
+            max-width: 600px;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 32px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: 'Space Grotesk', sans-serif;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--accent-dark);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+
+        .cta-button:hover::before {
+            left: 0;
+        }
+
+        .cta-button:hover {
+            transform: translateX(4px);
+            box-shadow: 0 8px 24px rgba(0, 255, 65, 0.2);
+        }
+
+        .cta-button svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2.5;
+        }
+
+        /* Suggestion Button */
+        .suggestion-btn {
+            padding: 14px 20px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: 'Space Grotesk', sans-serif;
+            letter-spacing: 0;
+            box-shadow: 0 8px 24px rgba(0, 255, 65, 0.2);
+            transition: all 0.3s;
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .suggestion-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--accent-dark);
+            transition: right 0.3s ease;
+            z-index: -1;
+        }
+
+        .suggestion-btn:hover::before {
+            right: 0;
+        }
+
+        .suggestion-btn:hover {
+            transform: translateX(-4px);
+            box-shadow: 0 8px 24px rgba(0, 255, 65, 0.2);
+        }
+
+        .suggestion-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2.5;
+            fill: none;
+        }
+
+        /* Features Section */
+        .features {
+            margin-top: 3.5rem;
+            padding-top: 2.5rem;
+            border-top: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+        }
+
+        .feature {
+            animation: fadeUp 0.8s ease-out;
+            animation-delay: 0.1s;
+            animation-fill-mode: both;
+        }
+
+        .feature:nth-child(2) { animation-delay: 0.2s; }
+        .feature:nth-child(3) { animation-delay: 0.3s; }
+        .feature:nth-child(4) { animation-delay: 0.4s; }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            color: var(--accent);
+            transition: all 0.3s;
+        }
+
+        .feature:hover .feature-icon {
+            background: rgba(0, 255, 65, 0.15);
+            border-color: rgba(0, 255, 65, 0.4);
+            transform: translateY(-4px);
+        }
+
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .feature h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .feature p {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            font-weight: 300;
+        }
+
+        footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        /* FAQ Button */
+        .faq-btn {
+            padding: 14px 20px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: 'Space Grotesk', sans-serif;
+            letter-spacing: 0;
+            box-shadow: 0 8px 24px rgba(0, 255, 65, 0.2);
+            transition: all 0.3s;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        .faq-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0, 255, 65, 0.3);
+        }
+
+        .faq-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* FAQ Modal */
+        .faq-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .faq-overlay.show { display: flex; }
+
+        .faq-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            max-width: 640px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: fadeUp 0.35s ease-out;
+            position: relative;
+        }
+
+        .faq-box::-webkit-scrollbar { width: 4px; }
+        .faq-box::-webkit-scrollbar-track { background: transparent; }
+        .faq-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .faq-close {
+            position: absolute;
+            top: 1.2rem; right: 1.2rem;
+            width: 32px; height: 32px;
+            background: transparent;
+            border: none;
+            font-size: 1.4rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+            border-radius: 8px;
+        }
+
+        .faq-close:hover { color: var(--text-primary); background: var(--surface-hover); }
+
+        .faq-modal-tag {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-family: 'Space Mono', monospace;
+            margin-bottom: 0.5rem;
+        }
+
+        .faq-box h3 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+
+        .faq-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .faq-item {
+            padding: 1.2rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .faq-item:last-child { border-bottom: none; }
+
+        .faq-item-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .faq-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            background: rgba(0, 255, 65, 0.08);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .faq-icon svg { stroke: var(--accent); width: 18px; height: 18px; stroke-width: 2; fill: none; }
+
+        .faq-item-header h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .faq-answer {
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            margin: 0 0 0 48px;
+        }
+
+        .faq-btn-row {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0 0 48px;
+            flex-wrap: wrap;
+        }
+
+        .faq-expand-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 12px;
+            background: rgba(0, 255, 65, 0.08);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .faq-expand-btn:hover,
+        .faq-item.expanded .faq-expand-btn { color: var(--accent); border-color: var(--accent); background: rgba(0,255,65,0.14); }
+        .faq-expand-btn svg { width: 13px; height: 13px; stroke-width: 2.5; fill: none; transition: transform 0.25s; }
+        .faq-item.expanded .faq-expand-btn svg { transform: rotate(180deg); }
+
+        .faq-eli5-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 12px;
+            background: rgba(251,191,36,0.08);
+            border: 1px solid rgba(251,191,36,0.2);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .faq-eli5-btn:hover,
+        .faq-item.eli5-open .faq-eli5-btn { color: #fbbf24; border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.12); }
+
+        .faq-technical, .faq-eli5 {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s, opacity 0.3s;
+            opacity: 0;
+            margin-left: 48px;
+        }
+
+        .faq-item.expanded .faq-technical,
+        .faq-item.eli5-open .faq-eli5 { max-height: 300px; opacity: 1; }
+
+        .faq-technical p {
+            font-size: 0.78rem;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            margin: 10px 0 0;
+            padding: 12px 14px;
+            background: rgba(0,255,65,0.06);
+            border: 1px solid rgba(0,255,65,0.15);
+            border-radius: 10px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .faq-technical p strong { color: var(--accent); font-weight: 700; }
+
+        .faq-eli5 p {
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: #fbbf24;
+            margin: 10px 0 0;
+            padding: 12px 14px;
+            background: rgba(251,191,36,0.06);
+            border: 1px solid rgba(251,191,36,0.15);
+            border-radius: 10px;
+        }
+
+        /* Feedback FAB */
+        .feedback-fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 8px 24px rgba(0, 255, 65, 0.25);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        .feedback-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 32px rgba(0, 255, 65, 0.35);
+        }
+
+        .feedback-fab svg {
+            width: 28px;
+            height: 28px;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* Feedback Modal */
+        .feedback-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .feedback-overlay.show {
+            display: flex;
+        }
+
+        .feedback-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            max-width: 500px;
+            width: 100%;
+            animation: fadeUp 0.4s ease-out;
+            position: relative;
+        }
+
+        .feedback-close {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            width: 32px;
+            height: 32px;
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .feedback-close:hover {
+            color: var(--text-primary);
+        }
+
+        .feedback-box h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .feedback-subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .feedback-textarea {
+            width: 100%;
+            min-height: 140px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            color: var(--text-primary);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        .feedback-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--bg);
+        }
+
+        .feedback-counter {
+            text-align: right;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin: 0.5rem 0 1.5rem;
+        }
+
+        .feedback-send {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: 'Space Grotesk', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .feedback-send:hover {
+            background: var(--accent-dark);
+            transform: translateY(-2px);
+        }
+
+        .feedback-send svg {
+            width: 16px;
+            height: 16px;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 1.5rem; }
+            .hero-card { padding: 2rem 1.5rem; }
+            .features { grid-template-columns: 1fr; gap: 1.5rem; }
+            h1 { font-size: clamp(1.5rem, 4vw, 2.2rem); }
+            .feedback-fab { width: 48px; height: 48px; bottom: 1.5rem; right: 1.5rem; }
+            .suggestion-btn { padding: 10px 16px; font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="container">
+        <div class="hero-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <div class="logo">🔐 Confessorium</div>
+                <div class="theme-switcher-wrapper">
+                    <div class="theme-icons">
+                        <span class="theme-icon active" id="sun-icon">☀️</span>
+                        <span class="theme-icon" id="moon-icon">🌙</span>
+                    </div>
+                    <div class="toggle-switch" id="theme-toggle">
+                        <div class="toggle-knob"></div>
+                    </div>
+                </div>
+            </div>
+            <h1>Chat Secreto &amp; Anônimo</h1>
+            <p class="subtitle">Salas efêmeras para conversas privadas. Sem cadastros, sem rastreamento, sem histórico. Quando todos saem, tudo desaparece.</p>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                <a href="/new" class="cta-button">
+                    Criar Sala Secreta
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </a>
+                <button class="faq-btn" id="faq-open-btn" title="Perguntas frequentes">FAQ</button>
+                <button class="suggestion-btn" id="suggest-btn" title="Sugerir melhorias">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    Sugerir melhorias
+                </button>
+            </div>
+
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <h3>100% Anônimo</h3>
+                    <p>Sem emails, sem nomes, sem identificação. Você é apenas um número.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </div>
+                    <h3>Auto-Destruição</h3>
+                    <p>Quando o último membro sai, a sala se destrói permanentemente.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                    <h3>End-to-End</h3>
+                    <p>Criptografia ponta-a-ponta. Nem mesmo nossos servidores veem as mensagens.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24"/></svg>
+                    </div>
+                    <h3>Sempre Disponível</h3>
+                    <p>Salas dinâmicas criadas em tempo real. Sem fila, sem espera, conexão instantânea.</p>
+                </div>
+            </div>
+
+            <!-- Stats Banner -->
+            <div style="margin-top: 3rem; padding: 1.5rem; background: rgba(0, 255, 65, 0.08); border: 1px solid rgba(0, 255, 65, 0.2); border-radius: 12px; text-align: center;">
+                <p style="font-size: 1.1rem; color: var(--accent); margin: 0 0 0.5rem 0; font-weight: 700;">
+                    ~<span id="unique-rooms-scientific">3.4</span> × 10³⁸
+                </p>
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0; word-break: break-all; font-family: 'Space Mono', monospace; letter-spacing: 0.5px;">
+                    <span id="unique-rooms-full">340282366920938463463374607431768211456</span>
+                </p>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0.8rem 0 0 0; font-weight: 500;">
+                    salas únicas possíveis — cada link é único, jamais se repetirá
+                </p>
+            </div>
+
+            <!-- Você sabia -->
+            <div id="voce-sabia-box" style="margin-top: 1.2rem; padding: 1.2rem 1.5rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; min-height: 64px;">
+                <p id="voce-sabia-linha" style="font-size: 0.82rem; color: var(--accent); line-height: 1.6; margin: 0; font-family: 'Space Mono', monospace; word-break: break-word;"></p>
+            </div>
+
+            <footer>
+                <p>&copy; 2026 Confessorium &mdash; A privacidade não é uma opção, é um direito.</p>
+            </footer>
+        </div>
+    </div>
+
+
+    <!-- FAQ Modal -->
+    <div class="faq-overlay" id="faq-overlay">
+        <div class="faq-box" id="faq-box">
+            <button class="faq-close" id="faq-close">&times;</button>
+            <div class="faq-modal-tag">// segurança &amp; privacidade</div>
+            <h3>Perguntas Frequentes</h3>
+            <p class="faq-subtitle">Tudo o que precisa saber sobre como protegemos as suas conversas.</p>
+            <div id="faq-items"></div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div class="feedback-overlay" id="feedback-overlay">
+        <div class="feedback-box">
+            <button class="feedback-close" id="feedback-close">&times;</button>
+            <h3>Tem uma ideia?</h3>
+            <p class="feedback-subtitle">Sua sugestão nos ajuda a melhorar. Seja anônimo, seja honesto.</p>
+            <textarea class="feedback-textarea" id="feedback-msg" maxlength="2000" placeholder="Ex: Seria legal ter modo escuro automático, suporte a áudio..."></textarea>
+            <div class="feedback-counter"><span id="feedback-count">0</span>/2000</div>
+            <button class="feedback-send" id="feedback-send">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Enviar
+            </button>
+        </div>
+    </div>
+
+    <script>
+    (() => {
+        const suggestBtn = document.getElementById('suggest-btn');
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+        const feedbackClose = document.getElementById('feedback-close');
+        const feedbackMsg = document.getElementById('feedback-msg');
+        const feedbackCount = document.getElementById('feedback-count');
+        const feedbackSend = document.getElementById('feedback-send');
+        const uniqueRoomsEl = document.getElementById('unique-rooms');
+
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const body = document.body;
+
+        // Theme switching
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const savedTheme = localStorage.getItem('theme') || (systemDark ? 'dark' : 'light');
+        if (savedTheme === 'light') {
+            body.classList.add('light-theme');
+            themeToggle.classList.add('active');
+            sunIcon.classList.add('active');
+            moonIcon.classList.remove('active');
+        } else {
+            sunIcon.classList.remove('active');
+            moonIcon.classList.add('active');
+        }
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                const newTheme = e.matches ? 'dark' : 'light';
+                if (newTheme === 'light') {
+                    body.classList.add('light-theme');
+                    themeToggle.classList.add('active');
+                    sunIcon.classList.add('active');
+                    moonIcon.classList.remove('active');
+                } else {
+                    body.classList.remove('light-theme');
+                    themeToggle.classList.remove('active');
+                    sunIcon.classList.remove('active');
+                    moonIcon.classList.add('active');
+                }
+            }
+        });
+
+        themeToggle.addEventListener('click', () => {
+            const isLight = body.classList.toggle('light-theme');
+            themeToggle.classList.toggle('active');
+
+            if (isLight) {
+                sunIcon.classList.add('active');
+                moonIcon.classList.remove('active');
+            } else {
+                sunIcon.classList.remove('active');
+                moonIcon.classList.add('active');
+            }
+
+            const newTheme = body.classList.contains('light-theme') ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+        });
+
+        // Feedback modal
+        if (suggestBtn) {
+            suggestBtn.addEventListener('click', () => {
+                console.log('Suggest button clicked, opening modal');
+                feedbackOverlay.classList.add('show');
+            });
+        } else {
+            console.error('Suggest button not found!');
+        }
+
+        if (feedbackClose) {
+            feedbackClose.addEventListener('click', () => feedbackOverlay.classList.remove('show'));
+        }
+
+        if (feedbackOverlay) {
+            feedbackOverlay.addEventListener('click', (e) => {
+                if (e.target === feedbackOverlay) feedbackOverlay.classList.remove('show');
+            });
+        }
+
+        // Format BigInt with thousand separators
+        function formatBigInt(str) {
+            return str.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        // Calculate scientific notation (approximate)
+        function toScientific(str) {
+            if (str.length > 3) {
+                const first = str.charAt(0);
+                const second = str.charAt(1);
+                const exponent = str.length - 1;
+                return `${first}.${second}`;
+            }
+            return str;
+        }
+
+        // Fetch and display rooms count
+        const roomsFullEl = document.getElementById('unique-rooms-full');
+        const roomsScientificEl = document.getElementById('unique-rooms-scientific');
+
+        function updateRoomsCount() {
+            fetch('/api/rooms-count')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.count) {
+                        const formatted = formatBigInt(data.count);
+                        const scientific = toScientific(data.count);
+                        if (roomsFullEl) roomsFullEl.textContent = formatted;
+                        if (roomsScientificEl) roomsScientificEl.textContent = scientific;
+                    }
+                })
+                .catch(err => console.log('Erro ao buscar salas:', err));
+        }
+
+        updateRoomsCount();
+
+        // Update rooms count every 30 seconds (if rooms are being blocked)
+        setInterval(updateRoomsCount, 30000);
+
+        feedbackMsg.addEventListener('input', () => {
+            feedbackCount.textContent = feedbackMsg.value.length;
+        });
+
+        feedbackSend.addEventListener('click', async () => {
+            const msg = feedbackMsg.value.trim();
+            if (!msg) return alert('Escreva algo!');
+
+            try {
+                console.log('Sending feedback:', msg);
+                const res = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+                console.log('Feedback response status:', res.status, res.ok);
+                const data = await res.json();
+                console.log('Feedback response:', data);
+
+                if (res.ok) {
+                    alert('Obrigado! Sua sugestão foi recebida.');
+                    feedbackMsg.value = '';
+                    feedbackCount.textContent = '0';
+                    feedbackOverlay.classList.remove('show');
+                } else {
+                    alert('Erro: ' + (data.error || 'Falha ao enviar.'));
+                }
+            } catch (err) {
+                console.error('Feedback error:', err);
+                alert('Erro ao enviar sugestão: ' + err.message);
+            }
+        });
+
+        // FAQ Modal
+        const faqOverlay = document.getElementById('faq-overlay');
+        const faqOpenBtn = document.getElementById('faq-open-btn');
+        const faqCloseBtn = document.getElementById('faq-close');
+        const faqItemsEl = document.getElementById('faq-items');
+
+        const iconMap = {
+            user: '<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+            lock: '<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+            trash: '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+            eye: '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+            share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>'
+        };
+
+        const faqData = [
+            {
+                icon: 'user',
+                title: 'Preciso de me registar?',
+                answer: 'Não. O Confessorium é 100% anônimo. Não pedimos o seu nome, e-mail ou qualquer informação pessoal. Você é apenas "Utilizador 1", "Utilizador 2", e assim por diante.',
+                eli5: 'Imagina um parquinho onde ninguém usa crachá. Você chega, brinca, e quando vai embora, ninguém sabe que você esteve lá. É assim que este chat funciona!',
+                technical: 'Sem cookies, sem pixels de rastreamento, sem analytics. O seu ID de sessão é gerado localmente usando <strong>crypto.randomUUID()</strong> e armazenado apenas no sessionStorage (apagado ao fechar o separador). O servidor nunca associa a sua conexão a nenhuma identidade persistente.'
+            },
+            {
+                icon: 'lock',
+                title: 'As minhas conversas são mesmo privadas?',
+                answer: 'Sim. Cada mensagem é trancada dentro do seu navegador antes de sair do seu dispositivo. Apenas as pessoas nesta sala conseguem lê-la. Nem mesmo o nosso servidor consegue ver o que escreve.',
+                eli5: 'É como escrever um bilhete secreto, colocar numa caixinha mágica que só o seu amigo tem a chave, e enviar pelo correio. O carteiro carrega a caixinha mas nunca consegue abrir ou ler o que está dentro!',
+                technical: 'Usamos a <strong>Web Crypto API</strong> (nativa do navegador) para toda a criptografia. As mensagens são encriptadas com <strong>AES-GCM de 256 bits</strong>. A chave da sala é trocada entre participantes usando <strong>RSA-OAEP de 2048 bits</strong>. O servidor apenas retransmite payloads encriptados — nunca tem acesso ao texto original.'
+            },
+            {
+                icon: 'trash',
+                title: 'O que acontece quando todos saem?',
+                answer: 'A sala, o histórico da conversa e todas as chaves de encriptação são permanentemente destruídos. Não há forma de recuperá-los — nem por nós.',
+                eli5: 'Pensa num castelo de areia na praia. Enquanto você e seus amigos estão lá, é o forte secreto de vocês. Mas quando todo mundo vai embora, as ondas vêm e levam tudo. Ninguém nunca mais vai encontrar aquele mesmo castelo!',
+                technical: 'O estado da sala é armazenado apenas na <strong>memória do servidor (RAM)</strong> — nunca escrito em disco ou base de dados. A chave AES existe apenas na <strong>memória do navegador (CryptoKey)</strong>. Quando o último socket desconecta, o servidor apaga tudo. Não existe camada de persistência.'
+            },
+            {
+                icon: 'eye',
+                title: 'Guardam registos (logs)?',
+                answer: 'Registamos dados básicos de conexão por segurança. Mas nunca — e tecnicamente não conseguimos — registar o conteúdo das suas conversas.',
+                eli5: 'A gente sabe que alguém bateu na porta, mas não faz ideia do que sussurraram dentro do quarto.',
+                technical: 'Os logs podem incluir timestamps e IPs (para prevenção de abusos), mas <strong>o conteúdo nunca é registado</strong> porque o servidor apenas vê payloads AES-GCM encriptados. Sem a chave — que nunca toca no servidor — a desencriptação é inviável.'
+            },
+            {
+                icon: 'share',
+                title: 'Como posso convidar alguém?',
+                answer: 'Clique no ícone de partilha no cabeçalho para copiar o link da sala. Envie-o a alguém de confiança — apenas quem tem o link pode entrar.',
+                eli5: 'É como um clubinho secreto com uma senha super longa e impossível de adivinhar. Você conta só pros amigos que quer lá dentro.',
+                technical: 'O ID da sala é uma <strong>string hexadecimal aleatória de 128 bits</strong> gerada por <strong>crypto.randomBytes(16)</strong>. Isto dá 3,4 × 10³⁸ combinações possíveis, tornando virtualmente impossível adivinhar.'
+            }
+        ];
+
+        faqItemsEl.innerHTML = faqData.map((item, i) => `
+            <div class="faq-item">
+                <div class="faq-item-header">
+                    <span class="faq-icon">${iconMap[item.icon]}</span>
+                    <h4>${item.title}</h4>
+                </div>
+                <p class="faq-answer">${item.answer}</p>
+                <div class="faq-btn-row">
+                    <button class="faq-eli5-btn" data-index="${i}">&#x1F476; Me explique como se eu tivesse 5 anos</button>
+                    <button class="faq-expand-btn" data-index="${i}">
+                        Detalhes técnicos
+                        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                </div>
+                <div class="faq-eli5"><p>${item.eli5}</p></div>
+                <div class="faq-technical"><p>${item.technical}</p></div>
+            </div>
+        `).join('');
+
+        faqItemsEl.querySelectorAll('.faq-expand-btn').forEach(btn => {
+            btn.addEventListener('click', () => btn.closest('.faq-item').classList.toggle('expanded'));
+        });
+
+        faqItemsEl.querySelectorAll('.faq-eli5-btn').forEach(btn => {
+            btn.addEventListener('click', () => btn.closest('.faq-item').classList.toggle('eli5-open'));
+        });
+
+        faqOpenBtn.addEventListener('click', () => faqOverlay.classList.add('show'));
+        faqCloseBtn.addEventListener('click', () => faqOverlay.classList.remove('show'));
+        faqOverlay.addEventListener('click', e => { if (e.target === faqOverlay) faqOverlay.classList.remove('show'); });
+
+        // Você sabia — efeito terminal
+        const vsFrages = ["Existem mais endereços de sala do que gotas de água em todos os oceanos da Terra.","Existem mais salas do que grãos de areia em todas as praias e desertos do mundo.","Existem mais salas do que folhas de árvore crescendo no planeta inteiro.","Existem mais salas do que formigas vivas caminhando na Terra hoje.","Existem mais salas do que lâminas de grama em todos os pastos e campos.","Existem mais salas do que flocos de neve que já caíram desde a Era do Gelo.","Existem mais salas do que fios de cabelo na cabeça de todos os 8 bilhões de humanos vivos.","Existem mais salas do que grãos de poeira flutuando na atmosfera do planeta.","Existem mais salas do que peixes nadando em todos os rios e mares.","Existem mais salas do que grãos de sal misturados na água do oceano.","Existem mais salas do que células vivas compondo o seu corpo neste exato momento.","Existem mais salas do que o total de batimentos cardíacos que você terá na sua vida inteira.","Existem mais salas do que todas as piscadas de olho dadas por toda a humanidade hoje.","Existem mais salas do que os passos dados pela raça humana desde a Idade da Pedra.","Existem mais salas do que palavras ditas em voz alta por todas as pessoas que já viveram.","Existem mais salas do que respirações dadas no mundo inteiro durante o último milênio.","Existem mais salas do que neurônios no cérebro de todas as pessoas da sua cidade somadas.","Existem mais salas do que glóbulos vermelhos circulando no sangue da população global.","Existem mais salas do que bactérias vivendo na sola do seu sapato agora.","Existem mais salas do que pensamentos que cruzarão a sua mente até o fim da sua vida.","Existem mais salas do que moedas de um centavo rodando na economia mundial.","Existem mais salas do que os dólares de todos os bilionários do mundo somados e multiplicados.","Existem mais salas do que tijolos usados para construir todas as casas, prédios e muros do planeta.","Existem mais salas do que xícaras de café tomadas pela humanidade desde a sua invenção.","Existem mais salas do que letras impressas em todos os livros de todas as bibliotecas do mundo.","Existem mais salas do que parafusos já fabricados na história da indústria.","Existem mais salas do que litros de gasolina queimados por carros desde o primeiro automóvel.","Existem mais salas do que grãos de açúcar nas prateleiras de todos os supermercados.","Existem mais salas do que roupas guardadas nos guarda-roupas do mundo inteiro.","Existem mais salas do que pratos de comida servidos na Terra no ano passado.","Existem mais salas do que mensagens enviadas no WhatsApp desde que o aplicativo foi criado.","Existem mais salas do que vídeos publicados no YouTube em toda a sua história.","Existem mais salas do que fotos já tiradas com câmeras e smartphones na última década.","Existem mais salas do que buscas feitas no Google desde o início da internet.","Existem mais salas do que pixels somados nas telas de todos os celulares ligados hoje.","Existem mais salas do que letras digitadas em todos os teclados de computador no último ano.","Existem mais salas do que transações de cartão de crédito aprovadas neste século.","Existem mais salas do que bits de informação gravados no disco rígido do seu computador.","Existem mais salas do que e-mails que caíram em caixas de spam na história da web.","Existem mais salas do que músicas reproduzidas em plataformas de streaming no ano passado.","Existem mais salas do que milissegundos passados desde o início do universo (Big Bang).","Existem mais salas do que segundos decorridos desde que os dinossauros foram extintos.","Existem mais salas do que minutos que a Terra viverá antes de o sol se apagar.","Existem mais salas do que horas que você precisaria viver para contar até um bilhão.","Existem mais salas do que estrelas brilhando na Via Láctea.","Existem mais salas do que galáxias espalhadas pelo universo observável.","Existem mais salas do que planetas girando em torno das estrelas da nossa galáxia.","Existem mais salas do que quilômetros de distância entre a Terra e o sol.","Existem mais salas do que crateras visíveis na superfície da Lua.","Existem mais salas do que átomos contidos em uma única gota de água da chuva."];
+
+        const vsLinha = document.getElementById('voce-sabia-linha');
+        const PREFIX = 'Você sabia... ';
+        const CURSOR = '_';
+        const TYPE_SPEED = 22;   // ms por caractere (digitando)
+        const ERASE_SPEED = 12;  // ms por caractere (apagando)
+        const PAUSE_BEFORE = 3000;   // espera após PREFIX antes de digitar frase
+        const PAUSE_AFTER = 10000;   // frase completa visível antes de apagar
+        let vsIdx = -1, vsTimer = null;
+
+        function vsRender(text) {
+            vsLinha.textContent = text + CURSOR;
+        }
+
+        function vsPickNext() {
+            let i;
+            do { i = Math.floor(Math.random() * vsFrages.length); } while (i === vsIdx);
+            vsIdx = i;
+            return vsFrages[vsIdx];
+        }
+
+        function vsType(frase, onDone) {
+            let i = 0;
+            function step() {
+                vsRender(PREFIX + frase.slice(0, i));
+                if (i < frase.length) { i++; vsTimer = setTimeout(step, TYPE_SPEED); }
+                else onDone();
+            }
+            step();
+        }
+
+        function vsErase(current, onDone) {
+            let text = current;
+            function step() {
+                if (text.length > PREFIX.length) {
+                    text = text.slice(0, -1);
+                    vsRender(text);
+                    vsTimer = setTimeout(step, ERASE_SPEED);
+                } else {
+                    onDone();
+                }
+            }
+            step();
+        }
+
+        function vsCycle() {
+            // Mostra prefix + cursor piscando por 3s
+            vsRender(PREFIX.trimEnd());
+            vsTimer = setTimeout(() => {
+                const frase = vsPickNext();
+                vsType(frase, () => {
+                    // Frase completa — cursor pisca por 20s
+                    vsTimer = setTimeout(() => {
+                        vsErase(PREFIX + frase, () => {
+                            // Voltou ao prefix, pausa curta e repete
+                            vsTimer = setTimeout(vsCycle, 800);
+                        });
+                    }, PAUSE_AFTER);
+                });
+            }, PAUSE_BEFORE);
+        }
+
+        // Faz o cursor piscar enquanto espera (anima o _ manualmente)
+        let vsBlinkOn = true;
+        setInterval(() => {
+            // Só pisca se a linha termina com _ e não está no meio de digitação
+            const t = vsLinha.textContent;
+            if (t.endsWith(CURSOR)) {
+                vsBlinkOn = !vsBlinkOn;
+                vsLinha.textContent = vsBlinkOn ? t : t.slice(0, -1);
+            } else if (!vsBlinkOn) {
+                vsBlinkOn = true;
+            }
+        }, 530);
+
+        vsCycle();
+
+        // Matrix Background Effect
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+        const charArray = chars.split('');
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(0);
+
+        function drawMatrix() {
+            ctx.fillStyle = body.classList.contains('light-theme')
+                ? 'rgba(245, 245, 245, 0.05)'
+                : 'rgba(10, 10, 10, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = body.classList.contains('light-theme')
+                ? 'rgba(0, 200, 50, 0.4)'
+                : 'rgba(0, 255, 65, 0.3)';
+            ctx.font = `${fontSize}px 'Space Mono', monospace`;
+            ctx.textAlign = 'center';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = charArray[Math.floor(Math.random() * charArray.length)];
+                ctx.fillText(text, i * fontSize + fontSize / 2, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        function animate() {
+            drawMatrix();
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Redraw matrix when theme changes
+        const originalToggleListener = themeToggle.onclick;
+        themeToggle.addEventListener('click', () => {
+            setTimeout(() => drawMatrix(), 50);
+        });
+    })();
+    </script>
+</body>
+</html>
