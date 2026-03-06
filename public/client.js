@@ -127,9 +127,9 @@ const translations = {
             {
                 icon: "eye",
                 title: "Do you keep logs?",
-                answer: "We log basic connection data (like when someone connects) for security. But we never — and technically cannot — log the content of your conversations.",
-                eli5: "We know someone knocked on the door, but we have no idea what they whispered inside the room. It's like a teacher who sees kids enter the treehouse but can't hear what they're talking about up there!",
-                technical: "Server logs may include connection timestamps and IP addresses (for abuse prevention), but <strong>message content is never logged</strong> because the server only sees encrypted binary payloads (AES-GCM ciphertext + IV). Without the AES key — which never touches the server — decryption is computationally infeasible."
+                answer: "We log connection metadata (IP address, port, timestamp) as required by Brazilian law. We never — and technically cannot — log the content of your conversations.",
+                eli5: "We know someone knocked on the door and roughly where they came from, but we have no idea what they whispered inside the room. It's like a teacher who signs a visitor register but can't hear what kids are talking about in the treehouse!",
+                technical: "Under <strong>LGPD Art. 7º, II</strong> (Lei nº 13.709/2018) and Brazil's Marco Civil da Internet (Lei nº 12.965/2014), we are legally required to retain connection logs: IP address (IPv4/IPv6), source port, timestamp, and room identifier. These are stored encrypted (<strong>AES-256-GCM</strong>) in a dedicated database. <strong>Message content is never logged</strong> because the server only sees AES-GCM ciphertext — without the room key, decryption is computationally infeasible. See our <a href='/termos.html' target='_blank' style='color:inherit;text-decoration:underline;'>Terms of Use</a> for full details."
             },
             {
                 icon: "share",
@@ -184,9 +184,9 @@ const translations = {
             {
                 icon: "eye",
                 title: "Guardam registos (logs)?",
-                answer: "Registamos dados básicos de conexão (como quando alguém se conecta) por segurança. Mas nunca — e tecnicamente não conseguimos — registar o conteúdo das suas conversas.",
-                eli5: "A gente sabe que alguém bateu na porta, mas não faz ideia do que sussurraram dentro do quarto. É como uma professora que vê as crianças subindo na casa da árvore, mas não consegue ouvir o que estão conversando lá em cima!",
-                technical: "Os logs do servidor podem incluir timestamps de conexão e endereços IP (para prevenção de abusos), mas <strong>o conteúdo das mensagens nunca é registado</strong> porque o servidor apenas vê payloads encriptados (ciphertext AES-GCM + IV). Sem a chave AES — que nunca toca no servidor — a desencriptação é computacionalmente inviável."
+                answer: "Sim, registamos metadados de conexão (endereço IP, porta, data/hora) por obrigação legal. Mas nunca — e tecnicamente não conseguimos — registar o conteúdo das suas conversas.",
+                eli5: "A gente sabe que alguém bateu na porta e de onde veio, mas não faz ideia do que sussurraram dentro do quarto. É como uma professora que assina um registro de visitantes mas não consegue ouvir o que as crianças conversam na casa da árvore!",
+                technical: "Por força da <strong>LGPD Art. 7º, II</strong> (Lei nº 13.709/2018) e do Marco Civil da Internet (Lei nº 12.965/2014), somos legalmente obrigados a manter registos de conexão: endereço IP (IPv4/IPv6), porta de origem, timestamp e identificador de sala. Estes dados são armazenados cifrados (<strong>AES-256-GCM</strong>) numa base de dados dedicada. <strong>O conteúdo das mensagens nunca é registado</strong> porque o servidor apenas vê ciphertext AES-GCM — sem a chave da sala, a desencriptação é computacionalmente inviável. Consulte os nossos <a href='/termos.html' target='_blank' style='color:inherit;text-decoration:underline;'>Termos de Uso</a> para mais detalhes."
             },
             {
                 icon: "share",

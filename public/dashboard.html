@@ -460,6 +460,43 @@
 
         .tag.red { background: var(--red-subtle); color: var(--red); border: 1px solid rgba(255,68,68,0.15); }
         .tag.green { background: var(--accent-subtle); color: var(--accent); border: 1px solid var(--accent-border); }
+        .tag.blue { background: var(--blue-subtle); color: var(--blue); border: 1px solid rgba(96,165,250,0.15); }
+        .tag.yellow { background: var(--yellow-subtle); color: var(--yellow); border: 1px solid rgba(251,191,36,0.15); }
+
+        /* Logs table */
+        .logs-table-wrap { overflow-x: auto; max-height: 480px; overflow-y: auto; }
+        .logs-table-wrap::-webkit-scrollbar { width: 4px; height: 4px; }
+        .logs-table-wrap::-webkit-scrollbar-track { background: transparent; }
+        .logs-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            font-family: 'Space Mono', monospace;
+        }
+        .logs-table th {
+            position: sticky; top: 0;
+            background: var(--surface);
+            color: var(--text-muted);
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            white-space: nowrap;
+            z-index: 1;
+        }
+        .logs-table td {
+            padding: 9px 14px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+        .logs-table tr:last-child td { border-bottom: none; }
+        .logs-table tr:hover td { background: var(--surface-hover); }
 
         .empty {
             color: var(--text-muted);
@@ -685,6 +722,37 @@
                 </div>
             </div>
         </div>
+        <!-- Access Logs -->
+        <div class="section-header" style="margin-top: 32px;">
+            <span class="section-title">Logs de Acesso (LGPD)</span>
+            <div class="section-line"></div>
+        </div>
+
+        <div class="panel" style="margin-bottom: 32px;">
+            <div class="panel-header">
+                <span class="panel-title">Registros de Conexão</span>
+                <span class="panel-count" id="logsPanelCount">—</span>
+            </div>
+            <div class="logs-table-wrap">
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Data / Hora (UTC)</th>
+                            <th>Evento</th>
+                            <th>Sala</th>
+                            <th>IPv4</th>
+                            <th>IPv6</th>
+                            <th>Porta</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accessLogsList">
+                        <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">
+                            <div class="loading"><div class="spinner"></div> carregando</div>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <div class="footer">
@@ -719,6 +787,8 @@
         const blockedPanelCount = $('blockedPanelCount');
         const chartPeakInfoEl   = $('chartPeakInfo');
         const footerTimestampEl = $('footerTimestamp');
+        const accessLogsListEl  = $('accessLogsList');
+        const logsPanelCountEl  = $('logsPanelCount');
 
         // Theme
         const themeToggle = $('theme-toggle');
@@ -843,12 +913,53 @@
             }
         }
 
+        // Fetch access logs (LGPD)
+        async function updateLogs() {
+            try {
+                const res = await fetch('/api/access-logs');
+                if (!res.ok) return;
+                const data = await res.json();
+                const logs = data.logs || [];
+                logsPanelCountEl.textContent = logs.length;
+
+                const eventBadge = (ev) => {
+                    if (ev === 'room_created') return '<span class="tag green">criada</span>';
+                    if (ev === 'room_joined')  return '<span class="tag blue">entrou</span>';
+                    if (ev === 'invite_redeemed') return '<span class="tag yellow">convite</span>';
+                    return `<span class="tag">${escapeHtml(ev)}</span>`;
+                };
+
+                if (logs.length === 0) {
+                    accessLogsListEl.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;"><div class="empty">// sem registros ainda</div></td></tr>';
+                } else {
+                    accessLogsListEl.innerHTML = logs.map(log => {
+                        const ts = log.timestamp ? new Date(log.timestamp).toISOString().replace('T',' ').replace('.000Z',' UTC') : '—';
+                        const ip4 = log.ip4 ? escapeHtml(log.ip4) : '<span style="color:var(--text-muted)">—</span>';
+                        const ip6 = log.ip6 ? escapeHtml(log.ip6) : '<span style="color:var(--text-muted)">—</span>';
+                        const port = log.port ? escapeHtml(String(log.port)) : '<span style="color:var(--text-muted)">—</span>';
+                        return `<tr>
+                            <td>${escapeHtml(ts)}</td>
+                            <td>${eventBadge(log.event)}</td>
+                            <td>${escapeHtml(log.roomIdShort || '—')}…</td>
+                            <td>${ip4}</td>
+                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${ip6}</td>
+                            <td>${port}</td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (err) {
+                console.error('Erro ao buscar logs:', err);
+            }
+        }
+
         // Refresh button
-        $('refreshBtn').addEventListener('click', () => updateData());
+        $('refreshBtn').addEventListener('click', () => { updateData(); updateLogs(); });
 
         // Initial load + auto-refresh 30s
         updateData();
+        updateLogs();
         setInterval(updateData, 30000);
+        setInterval(updateLogs, 30000);
     })();
     </script>
 </body>

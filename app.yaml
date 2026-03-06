@@ -12,3 +12,4 @@ network:
 
 env_variables:
   DASHBOARD_PASSWORD: "d2o2i2s2"
+  LOG_ENCRYPTION_KEY: "8f4e80d379f2e60fea5ac25e7c0d0d16e91785a6fc963e1eafaf2688a9c78f8b"

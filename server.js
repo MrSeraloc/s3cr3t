@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
 const crypto = require('crypto');
+const { Firestore } = require('@google-cloud/firestore');
 
 const fs = require('fs');
 
@@ -39,6 +40,42 @@ const roomState = new Map();
 const rateLimitMap = new Map();
 const emptyRoomTimers = new Map(); // Track grace period timers for empty rooms
 const inviteTokens = new Map(); // Map<token, { roomId, createdAt, used }>
+
+// --- Firestore & Log Encryption ---
+const db = new Firestore({ databaseId: 'confessorium' });
+const LOG_KEY = Buffer.from(process.env.LOG_ENCRYPTION_KEY || '', 'hex');
+
+function encryptLogData(data) {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', LOG_KEY, iv);
+    const encrypted = Buffer.concat([cipher.update(JSON.stringify(data), 'utf8'), cipher.final()]);
+    return { iv: iv.toString('hex'), encrypted: encrypted.toString('hex'), tag: cipher.getAuthTag().toString('hex') };
+}
+
+function decryptLogData({ iv, encrypted, tag }) {
+    const decipher = crypto.createDecipheriv('aes-256-gcm', LOG_KEY, Buffer.from(iv, 'hex'));
+    decipher.setAuthTag(Buffer.from(tag, 'hex'));
+    return JSON.parse(Buffer.concat([decipher.update(Buffer.from(encrypted, 'hex')), decipher.final()]).toString('utf8'));
+}
+
+async function writeAccessLog(event, roomId, rawIp, port) {
+    try {
+        const ipList = (rawIp || '').split(',').map(s => s.trim()).filter(Boolean);
+        const ip4 = ipList.find(ip => /^\d+\.\d+\.\d+\.\d+$/.test(ip)) || null;
+        const ip6 = ipList.find(ip => ip.includes(':')) || null;
+        const sensitive = encryptLogData({ ip4, ip6, port: port ? String(port) : null, roomId });
+        await db.collection('access_logs').add({
+            event,
+            roomIdShort: roomId.substring(0, 8),
+            timezone: 'UTC',
+            timestamp: Firestore.Timestamp.now(),
+            ...sensitive
+        });
+        console.log(`[LOG] Acesso registrado: ${event} sala ${roomId.substring(0, 8)}`);
+    } catch (err) {
+        console.error('[LOG] Falha ao gravar log de acesso:', err.message);
+    }
+}
 
 // Grace period: 60 seconds before blocking an empty room
 const EMPTY_ROOM_GRACE_PERIOD = 60000; // 60 seconds
@@ -413,6 +450,40 @@ app.get('/api/rooms-count', (req, res) => {
     res.json({ count: available.toString() });
 });
 
+// --- Access Logs Endpoint (dashboard only) ---
+app.get('/api/access-logs', requireDashboardAuth, async (req, res) => {
+    try {
+        const snapshot = await db.collection('access_logs')
+            .orderBy('timestamp', 'desc')
+            .limit(100)
+            .get();
+
+        const logs = snapshot.docs.map(doc => {
+            const d = doc.data();
+            try {
+                const decrypted = decryptLogData(d);
+                return {
+                    id: doc.id,
+                    event: d.event,
+                    roomIdShort: d.roomIdShort,
+                    timezone: d.timezone,
+                    timestamp: d.timestamp.toDate().toISOString(),
+                    ip4: decrypted.ip4,
+                    ip6: decrypted.ip6,
+                    port: decrypted.port
+                };
+            } catch {
+                return { id: doc.id, event: d.event, roomIdShort: d.roomIdShort, timestamp: d.timestamp.toDate().toISOString(), error: 'decrypt_failed' };
+            }
+        });
+
+        res.json({ logs });
+    } catch (err) {
+        console.error('[LOG] Erro ao buscar logs:', err.message);
+        res.status(500).json({ error: 'Erro ao buscar logs.' });
+    }
+});
+
 // --- Invite Token Generation ---
 app.post('/api/invite/:roomId', (req, res) => {
     const { roomId } = req.params;
@@ -443,7 +514,7 @@ app.post('/api/invite/:roomId', (req, res) => {
 });
 
 // --- Invite Token Redemption ---
-app.get('/invite/:token', (req, res) => {
+app.get('/invite/:token', async (req, res) => {
     const { token } = req.params;
 
     if (!/^[a-f0-9]{64}$/.test(token)) {
@@ -463,6 +534,11 @@ app.get('/invite/:token', (req, res) => {
 
     tokenData.used = true;
     console.log(`LOG: Token de convite consumido para sala ${tokenData.roomId.substring(0, 8)}...`);
+
+    // Log de acesso via convite (LGPD Art. 7º, II)
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const port = req.socket.remotePort || null;
+    writeAccessLog('invite_redeemed', tokenData.roomId, rawIp, port);
 
     res.redirect(`/${tokenData.roomId}`);
 });
@@ -509,8 +585,10 @@ io.on('connection', (socket) => {
         return;
     }
 
+    const isNewRoom = !roomState.has(roomId);
+
     // Create room if it doesn't exist
-    if (!roomState.has(roomId)) {
+    if (isNewRoom) {
         incrementAnalytics('roomsCreated');
         const state = { userCounter: 0, users: new Map(), passwordHash: null, maxUsers: 0, expiresAt: null };
         // First user can configure the room
@@ -594,6 +672,11 @@ io.on('connection', (socket) => {
     socket.emit('existing-users', otherUsers);
 
     socket.to(roomId).emit('system message', { key: 'userJoined', username: socket.username });
+
+    // Log de acesso (LGPD Art. 7º, II)
+    const rawIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+    const port = socket.handshake.headers['x-forwarded-port'] || null;
+    writeAccessLog(isNewRoom ? 'room_created' : 'room_joined', roomId, rawIp, port);
 
     updateRoomCount(roomId);
   });
