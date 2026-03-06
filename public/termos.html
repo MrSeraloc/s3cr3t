@@ -353,49 +353,13 @@
                     <p>A coleta de endereços IP e metadados de rede é realizada com fundamento no <strong>Art. 7º, inciso II da Lei nº 13.709/2018 (LGPD)</strong> — <em>Cumprimento de Obrigação Legal ou Regulatória</em>. Esta obrigação decorre do Marco Civil da Internet (Lei nº 12.965/2014), que exige o registro de logs de conexão por provedores de aplicações de internet.</p>
                 </div>
 
-                <p>Os dados coletados a cada conexão são:</p>
-
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Dado</th>
-                            <th>Descrição</th>
-                            <th>Armazenamento</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Endereço IP (IPv4)</td>
-                            <td>Endereço de Protocolo Internet versão 4</td>
-                            <td>Cifrado (AES-256-GCM)</td>
-                        </tr>
-                        <tr>
-                            <td>Endereço IP (IPv6)</td>
-                            <td>Endereço de Protocolo Internet versão 6</td>
-                            <td>Cifrado (AES-256-GCM)</td>
-                        </tr>
-                        <tr>
-                            <td>Porta lógica de origem</td>
-                            <td>Porta TCP da conexão de entrada</td>
-                            <td>Cifrado (AES-256-GCM)</td>
-                        </tr>
-                        <tr>
-                            <td>Identificador da sala</td>
-                            <td>Hash hex de 128 bits (anonimizado)</td>
-                            <td>Parcialmente visível (8 chars)</td>
-                        </tr>
-                        <tr>
-                            <td>Data e hora</td>
-                            <td>Timestamp UTC da conexão</td>
-                            <td>Plaintext (metadado não sensível)</td>
-                        </tr>
-                        <tr>
-                            <td>Fuso horário</td>
-                            <td>UTC (Coordinated Universal Time)</td>
-                            <td>Plaintext</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <p><strong>O que é coletado</strong> a cada conexão:</p>
+                <ul>
+                    <li>Endereço IP (IPv4 e/ou IPv6)</li>
+                    <li>Porta lógica de origem</li>
+                    <li>Identificador da sala (anonimizado)</li>
+                    <li>Data, hora e fuso horário (UTC) da conexão</li>
+                </ul>
 
                 <p><strong>O que NÃO é coletado:</strong></p>
                 <ul>
@@ -413,7 +377,7 @@
             <div class="section">
                 <p class="section-title">03. Criptografia em Repouso</p>
                 <h2>Proteção dos Logs de Acesso</h2>
-                <p>Os dados sensíveis dos logs de conexão (endereços IP e porta) são cifrados com <code>AES-256-GCM</code> antes de serem armazenados no banco de dados. A chave de criptografia não é armazenada junto aos dados. O banco de dados (Google Cloud Firestore) também aplica criptografia em repouso nativa gerenciada pelo Google.</p>
+                <p>Os dados sensíveis dos logs de conexão (endereços IP e porta) são cifrados com <code>AES-256-GCM</code> antes de serem armazenados no banco de dados. A chave de criptografia não é armazenada junto aos dados.</p>
             </div>
 
             <hr class="divider">
@@ -422,40 +386,23 @@
             <div class="section">
                 <p class="section-title">04. Retenção de Dados</p>
                 <h2>Prazo de Guarda</h2>
-                <p>Os registros de conexão são mantidos por <strong>12 (doze) meses</strong> contados da data do registro, em conformidade com o Art. 15 do Marco Civil da Internet (Lei nº 12.965/2014). Após esse prazo, os dados são eliminados automaticamente.</p>
+                <p>Os registros de conexão são mantidos pelo <strong>prazo mínimo exigido pela legislação brasileira vigente</strong>, em especial o Marco Civil da Internet (Lei nº 12.965/2014). Findo esse prazo, os dados são eliminados.</p>
             </div>
 
             <hr class="divider">
 
-            <!-- 5. DIREITOS DO TITULAR -->
+            <!-- 5. COMPARTILHAMENTO -->
             <div class="section">
-                <p class="section-title">05. Direitos do Titular (LGPD)</p>
-                <h2>Seus Direitos</h2>
-                <p>Na qualidade de titular de dados pessoais, você tem direito a (Art. 18 da LGPD):</p>
-                <ul>
-                    <li>Confirmar a existência de tratamento de seus dados;</li>
-                    <li>Acessar os dados tratados;</li>
-                    <li>Solicitar correção de dados incompletos ou desatualizados;</li>
-                    <li>Solicitar eliminação de dados desnecessários, excessivos ou tratados em desconformidade com a LGPD;</li>
-                    <li>Solicitar informações sobre o compartilhamento de dados.</li>
-                </ul>
-                <p>Para exercer seus direitos, entre em contato através do e-mail indicado na seção de contato. Note que, por se tratar de obrigação legal, a eliminação de logs de conexão válidos pode ser limitada durante o período de retenção.</p>
-            </div>
-
-            <hr class="divider">
-
-            <!-- 6. COMPARTILHAMENTO -->
-            <div class="section">
-                <p class="section-title">06. Compartilhamento de Dados</p>
+                <p class="section-title">05. Compartilhamento de Dados</p>
                 <h2>Quem tem acesso?</h2>
-                <p>Os logs de acesso são acessíveis exclusivamente pelo administrador do serviço através de um painel autenticado. Não há compartilhamento comercial de dados. Os dados poderão ser fornecidos a autoridades competentes mediante ordem judicial ou requisição legal fundamentada no Marco Civil da Internet.</p>
+                <p>Os logs de acesso são acessíveis exclusivamente pelo administrador do serviço através de um painel autenticado. Não há compartilhamento comercial de dados. Os dados poderão ser fornecidos <strong>exclusiva e unicamente</strong> a autoridades competentes, exclusivamente sob <strong>ordem judicial fundamentada no Marco Civil da Internet</strong> (Lei nº 12.965/2014).</p>
             </div>
 
             <hr class="divider">
 
             <!-- 7. USO ACEITÁVEL -->
             <div class="section">
-                <p class="section-title">07. Uso Aceitável</p>
+                <p class="section-title">06. Uso Aceitável</p>
                 <h2>Proibições</h2>
                 <p>É vedado utilizar o Confessorium para:</p>
                 <ul>
@@ -465,17 +412,18 @@
                     <li>Ataques a infraestruturas ou exploração de vulnerabilidades;</li>
                     <li>Qualquer atividade que viole a legislação brasileira vigente.</li>
                 </ul>
-                <p>O descumprimento poderá resultar em bloqueio e, conforme o caso, comunicação às autoridades competentes.</p>
+                <p>Embora o texto e o conteúdo das mensagens não sejam analisados, registrados, gravados ou capturados de nenhuma forma pelo serviço, a utilização do Confessorium deve estar em conformidade com todas as leis vigentes aplicáveis.</p>
             </div>
 
             <hr class="divider">
 
             <!-- 8. CONTATO -->
             <div class="section">
-                <p class="section-title">08. Contato</p>
+                <p class="section-title">07. Contato</p>
                 <h2>Encarregado de Dados (DPO)</h2>
                 <p>Para questões relacionadas à privacidade, proteção de dados ou exercício de direitos previstos na LGPD, entre em contato:</p>
                 <p><strong>Plataforma:</strong> Confessorium &mdash; <strong>Jurisdição:</strong> Brasil</p>
+                <p><strong>E-mail:</strong> <a href="mailto:legal@confessorium.com" style="color:var(--accent);">legal@confessorium.com</a></p>
             </div>
 
             <div class="button-group">
