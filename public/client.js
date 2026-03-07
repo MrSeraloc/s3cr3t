@@ -1135,9 +1135,36 @@ passwordInput.addEventListener('keydown', (e) => {
 // ============================================================
 // Socket.IO: Connection & Join
 // ============================================================
-socket.on('connect', () => {
-    // Try joining without password first (server will tell us if needed)
+// ============================================================
+// Disclaimer Modal
+// ============================================================
+const disclaimerModal    = document.getElementById('disclaimer-modal');
+const disclaimerCheckbox = document.getElementById('disclaimer-checkbox');
+const disclaimerConfirm  = document.getElementById('disclaimer-confirm');
+const DISCLAIMER_KEY     = 'confessorium-disclaimer-accepted';
+
+disclaimerCheckbox.addEventListener('change', () => {
+    const accepted = disclaimerCheckbox.checked;
+    disclaimerConfirm.disabled = !accepted;
+    disclaimerConfirm.style.opacity = accepted ? '1' : '0.4';
+    disclaimerConfirm.style.cursor  = accepted ? 'pointer' : 'not-allowed';
+});
+
+disclaimerConfirm.addEventListener('click', () => {
+    if (!disclaimerCheckbox.checked) return;
+    sessionStorage.setItem(DISCLAIMER_KEY, '1');
+    disclaimerModal.classList.add('hidden');
     joinRoom(null);
+});
+
+socket.on('connect', () => {
+    if (sessionStorage.getItem(DISCLAIMER_KEY) === '1') {
+        // Already accepted this session — join directly
+        joinRoom(null);
+    } else {
+        // Show disclaimer and wait for acceptance
+        disclaimerModal.classList.remove('hidden');
+    }
 });
 
 // ============================================================
