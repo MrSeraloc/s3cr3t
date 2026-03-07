@@ -1141,7 +1141,13 @@ passwordInput.addEventListener('keydown', (e) => {
 const disclaimerModal    = document.getElementById('disclaimer-modal');
 const disclaimerCheckbox = document.getElementById('disclaimer-checkbox');
 const disclaimerConfirm  = document.getElementById('disclaimer-confirm');
-const DISCLAIMER_KEY     = 'confessorium-disclaimer-accepted';
+const DISCLAIMER_KEY     = 'confessorium-disclaimer-ts';
+const DISCLAIMER_TTL_MS  = 60 * 60 * 1000; // 1 hora
+
+function disclaimerAccepted() {
+    const ts = parseInt(localStorage.getItem(DISCLAIMER_KEY) || '0', 10);
+    return ts > 0 && (Date.now() - ts) < DISCLAIMER_TTL_MS;
+}
 
 disclaimerCheckbox.addEventListener('change', () => {
     const accepted = disclaimerCheckbox.checked;
@@ -1152,17 +1158,15 @@ disclaimerCheckbox.addEventListener('change', () => {
 
 disclaimerConfirm.addEventListener('click', () => {
     if (!disclaimerCheckbox.checked) return;
-    sessionStorage.setItem(DISCLAIMER_KEY, '1');
+    localStorage.setItem(DISCLAIMER_KEY, String(Date.now()));
     disclaimerModal.classList.add('hidden');
     joinRoom(null);
 });
 
 socket.on('connect', () => {
-    if (sessionStorage.getItem(DISCLAIMER_KEY) === '1') {
-        // Already accepted this session — join directly
+    if (disclaimerAccepted()) {
         joinRoom(null);
     } else {
-        // Show disclaimer and wait for acceptance
         disclaimerModal.classList.remove('hidden');
     }
 });
