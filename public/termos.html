@@ -288,6 +288,52 @@
         footer a { color: var(--accent); text-decoration: none; }
         footer a:hover { text-decoration: underline; }
 
+        /* Prohibition list */
+        .prohibition-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .prohibition-item {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        .prohibition-item:last-child { border-bottom: none; }
+        .prohibition-item:hover { background: var(--surface-hover); }
+
+        .prohibition-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--accent);
+            padding: 14px 16px;
+            border-right: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            font-family: 'Space Grotesk', sans-serif;
+            letter-spacing: 0.2px;
+        }
+
+        .prohibition-text {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            padding: 14px 16px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            .prohibition-item { grid-template-columns: 1fr; }
+            .prohibition-title { border-right: none; border-bottom: 1px solid var(--border); padding: 10px 14px; }
+            .prohibition-text { padding: 10px 14px; }
+        }
+
         @media (max-width: 600px) {
             body { padding: 1.5rem 1rem 3rem; }
             .terms-card { padding: 2rem 1.2rem; }
@@ -356,8 +402,6 @@
                 <p><strong>O que é coletado</strong> a cada conexão:</p>
                 <ul>
                     <li>Endereço IP (IPv4 e/ou IPv6)</li>
-                    <li>Porta lógica de origem</li>
-                    <li>Identificador da sala (anonimizado)</li>
                     <li>Data, hora e fuso horário (UTC) da conexão</li>
                 </ul>
 
@@ -393,9 +437,9 @@
 
             <!-- 5. COMPARTILHAMENTO -->
             <div class="section">
-                <p class="section-title">05. Compartilhamento de Dados</p>
-                <h2>Quem tem acesso?</h2>
-                <p>Os logs de acesso são acessíveis exclusivamente pelo administrador do serviço através de um painel autenticado. Não há compartilhamento comercial de dados. Os dados poderão ser fornecidos <strong>exclusiva e unicamente</strong> a autoridades competentes, exclusivamente sob <strong>ordem judicial fundamentada no Marco Civil da Internet</strong> (Lei nº 12.965/2014).</p>
+                <p class="section-title">05. Compartilhamento &amp; Minimização de Dados</p>
+                <h2>Princípio da Minimização</h2>
+                <p>A plataforma adota o princípio da minimização de dados. Não há tratamento de informações para fins comerciais. Em conformidade com o Art. 15 da Lei nº 12.965/2014, mantemos apenas os registros de acesso necessários pelo período mínimo exigido. Ressaltamos que o conteúdo das comunicações é temporário e não permanece armazenado em nossos servidores. O compartilhamento de metadados de conexão ocorrerá apenas sob estrita ordem judicial, garantindo o devido processo legal e a proteção absoluta à privacidade dos usuários conforme a LGPD.</p>
             </div>
 
             <hr class="divider">
@@ -403,16 +447,35 @@
             <!-- 7. USO ACEITÁVEL -->
             <div class="section">
                 <p class="section-title">06. Uso Aceitável</p>
-                <h2>Proibições</h2>
-                <p>É vedado utilizar o Confessorium para:</p>
-                <ul>
-                    <li>Atividades ilícitas, incluindo tráfico, extorsão ou fraude;</li>
-                    <li>Assédio, ameaças ou perseguição a terceiros;</li>
-                    <li>Distribuição de conteúdo que viole direitos autorais ou privacidade de terceiros;</li>
-                    <li>Ataques a infraestruturas ou exploração de vulnerabilidades;</li>
-                    <li>Qualquer atividade que viole a legislação brasileira vigente.</li>
-                </ul>
-                <p>Embora o texto e o conteúdo das mensagens não sejam analisados, registrados, gravados ou capturados de nenhuma forma pelo serviço, a utilização do Confessorium deve estar em conformidade com todas as leis vigentes aplicáveis.</p>
+                <h2>Condutas Terminantemente Proibidas</h2>
+                <p>É terminantemente proibida a utilização do Confessorium para a prática de atos que violem o ordenamento jurídico brasileiro, sendo vedado o uso da plataforma para:</p>
+
+                <div class="prohibition-list">
+                    <div class="prohibition-item">
+                        <span class="prohibition-title">Práticas Ilícitas</span>
+                        <span class="prohibition-text">Planejamento ou execução de crimes, incluindo, mas não se limitando a, tráfico de substâncias ou pessoas, extorsão, estelionato, fraudes financeiras e lavagem de dinheiro.</span>
+                    </div>
+                    <div class="prohibition-item">
+                        <span class="prohibition-title">Violação de Direitos Individuais</span>
+                        <span class="prohibition-text">Prática de assédio (cyberbullying), ameaças, perseguição (stalking) ou qualquer forma de incitação à violência e ao ódio.</span>
+                    </div>
+                    <div class="prohibition-item">
+                        <span class="prohibition-title">Exploração e Abuso</span>
+                        <span class="prohibition-text">Distribuição, compartilhamento ou apologia a conteúdos de exploração sexual, especialmente envolvendo menores de idade.</span>
+                    </div>
+                    <div class="prohibition-item">
+                        <span class="prohibition-title">Propriedade Intelectual e Privacidade</span>
+                        <span class="prohibition-text">Compartilhamento de dados pessoais de terceiros sem autorização (doxing) ou material protegido por direitos autorais.</span>
+                    </div>
+                    <div class="prohibition-item">
+                        <span class="prohibition-title">Ataques Tecnológicos</span>
+                        <span class="prohibition-text">Tentativas de engenharia reversa, exploração de vulnerabilidades, ataques de negação de serviço (DoS/DDoS) ou comprometimento da infraestrutura do serviço.</span>
+                    </div>
+                </div>
+
+                <div class="highlight-box" style="margin-top: 1.4rem; border-left-color: var(--text-muted); background: rgba(255,255,255,0.03); border-color: var(--border);">
+                    <p style="color: var(--text-secondary); font-weight: 400; font-size: 0.9rem;"><strong style="color: var(--text-primary);">Parágrafo Único:</strong> A natureza efêmera e a ausência de registro do conteúdo das mensagens — armazenadas exclusivamente em memória volátil — visam garantir a privacidade da comunicação, mas não constituem salvo-conduto para o anonimato ilícito. O Usuário é o único e exclusivo responsável pelas informações transmitidas, respondendo civil e criminalmente por seus atos. O Confessorium cooperará integralmente com autoridades judiciais mediante requisição de registros de acesso (IP e metadados) nos termos do Marco Civil da Internet.</p>
+                </div>
             </div>
 
             <hr class="divider">
