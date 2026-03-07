@@ -6,6 +6,13 @@ const crypto = require('crypto');
 const { Firestore } = require('@google-cloud/firestore');
 
 const fs = require('fs');
+const { Expo } = require('expo-server-sdk');
+const expo = new Expo();
+
+// Push tokens: roomId → Set<expoPushToken>
+const roomPushTokens = new Map();
+// Push tokens: socketId → expoPushToken (para limpeza ao desconectar)
+const socketPushTokens = new Map();
 
 const app = express();
 app.use(express.json());
@@ -500,6 +507,34 @@ app.get('/api/access-logs', requireDashboardAuth, async (req, res) => {
     }
 });
 
+// --- Push Token Registration (App Mobile) ---
+app.post('/api/push-token', (req, res) => {
+    const { roomId, pushToken, socketId } = req.body;
+    if (!roomId || !pushToken) return res.sendStatus(400);
+    if (!Expo.isExpoPushToken(pushToken)) return res.sendStatus(400);
+
+    if (!roomPushTokens.has(roomId)) roomPushTokens.set(roomId, new Set());
+    roomPushTokens.get(roomId).add(pushToken);
+
+    if (socketId) socketPushTokens.set(socketId, pushToken);
+
+    res.sendStatus(200);
+});
+
+// Android App Links — verificação de domínio
+app.get('/.well-known/assetlinks.json', (req, res) => {
+    res.json([{
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: {
+            namespace: 'android_app',
+            package_name: 'com.confessorium.app',
+            sha256_cert_fingerprints: [
+                'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99' // preencher após eas credentials
+            ]
+        }
+    }]);
+});
+
 // --- Invite Token Generation ---
 app.post('/api/invite/:roomId', (req, res) => {
     const { roomId } = req.params;
@@ -736,6 +771,19 @@ io.on('connection', (socket) => {
         }
     }
 
+    // Limpar push token ao desconectar
+    const pushToken = socketPushTokens.get(socket.id);
+    if (pushToken) {
+        socketPushTokens.delete(socket.id);
+        for (const rid of socket.rooms) {
+            const set = roomPushTokens.get(rid);
+            if (set) {
+                set.delete(pushToken);
+                if (set.size === 0) roomPushTokens.delete(rid);
+            }
+        }
+    }
+
     setTimeout(() => updateRoomCount(roomId), 100);
     sessionMap.delete(socket.id);
     rateLimitMap.delete(socket.id);
@@ -795,7 +843,7 @@ io.on('connection', (socket) => {
   });
 
   // --- Chat Message (with rate limiting) ---
-  socket.on('chat message', (payload) => {
+  socket.on('chat message', async (payload) => {
     if (!socket.username || !socket.room) return;
     if (!checkRateLimit(socket.id)) {
         socket.emit('rate-limited');
@@ -809,6 +857,27 @@ io.on('connection', (socket) => {
       messageId: crypto.randomBytes(8).toString('hex'),
       timestamp: Date.now()
     });
+
+    // Notificações push para usuários com app em background
+    const tokens = [...(roomPushTokens.get(socket.room) || [])];
+    const senderToken = socketPushTokens.get(socket.id);
+    const targets = tokens.filter(t => t !== senderToken);
+
+    if (targets.length > 0) {
+        const messages = targets.map(to => ({
+            to,
+            sound: 'default',
+            title: 'Confessorium',
+            body: 'Nova mensagem recebida',
+            data: { roomId: socket.room },
+            badge: 1,
+        }));
+        try {
+            await expo.sendPushNotificationsAsync(messages);
+        } catch (err) {
+            console.error('[PUSH] Erro ao enviar notificação:', err.message);
+        }
+    }
   });
 
   // --- Chat Image (with size limit + rate limiting) ---

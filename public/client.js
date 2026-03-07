@@ -1164,6 +1164,13 @@ disclaimerConfirm.addEventListener('click', () => {
 });
 
 socket.on('connect', () => {
+    // Notificar o app nativo que o socket está pronto
+    if (typeof window.ReactNativeWebView !== 'undefined') {
+        document.dispatchEvent(new CustomEvent('__confessorium_socket_ready', {
+            detail: { socketId: socket.id }
+        }));
+    }
+
     if (disclaimerAccepted()) {
         joinRoom(null);
     } else {
@@ -1177,6 +1184,19 @@ socket.on('connect', () => {
 socket.on('join-success', ({ username }) => {
     myUsername = username;
     myUsernameText.textContent = username;
+
+    // Registrar push token se estiver no app nativo
+    if (window.__nativePushToken) {
+        fetch('/api/push-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                roomId: window.location.pathname.substring(1),
+                pushToken: window.__nativePushToken,
+                socketId: socket.id
+            })
+        }).catch(() => {}); // falha silenciosa — não crítico
+    }
 });
 
 socket.on('rename-success', ({ username }) => {
