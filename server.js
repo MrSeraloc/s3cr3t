@@ -451,13 +451,28 @@ app.get('/api/rooms-count', (req, res) => {
 });
 
 // --- Access Logs Endpoint (dashboard only) ---
+// Query params: event, room (prefix, max 8 chars), from (ISO), to (ISO), limit (max 500)
+// Composite indexes needed in Firestore when combining event/room with orderBy(timestamp):
+//   - (event ASC, timestamp DESC)
+//   - (roomIdShort ASC, timestamp DESC)
 app.get('/api/access-logs', requireDashboardAuth, async (req, res) => {
     try {
-        const snapshot = await db.collection('access_logs')
-            .orderBy('timestamp', 'desc')
-            .limit(100)
-            .get();
+        const { event, from, to, room } = req.query;
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
 
+        let query = db.collection('access_logs');
+
+        if (event) query = query.where('event', '==', event);
+        if (room) {
+            const r = room.substring(0, 8);
+            query = query.where('roomIdShort', '>=', r).where('roomIdShort', '<', r + '\uf8ff');
+        }
+        if (from) query = query.where('timestamp', '>=', Firestore.Timestamp.fromDate(new Date(from)));
+        if (to)   query = query.where('timestamp', '<=', Firestore.Timestamp.fromDate(new Date(to)));
+
+        query = query.orderBy('timestamp', 'desc').limit(limit);
+
+        const snapshot = await query.get();
         const logs = snapshot.docs.map(doc => {
             const d = doc.data();
             try {
@@ -477,10 +492,11 @@ app.get('/api/access-logs', requireDashboardAuth, async (req, res) => {
             }
         });
 
-        res.json({ logs });
+        res.json({ logs, total: logs.length, filtered: !!(event || from || to || room) });
     } catch (err) {
         console.error('[LOG] Erro ao buscar logs:', err.message);
-        res.status(500).json({ error: 'Erro ao buscar logs.' });
+        // Firestore index errors contain a URL to create the missing composite index
+        res.status(500).json({ error: 'Erro ao consultar logs', detail: err.message });
     }
 });
 
